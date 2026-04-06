@@ -1,14 +1,17 @@
+from typing import Annotated, Literal
 from uuid import UUID
-from typing import Literal
-from fastapi import APIRouter, HTTPException, Query
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+
 from app.models.schemas import Product, ProductDetail, ScrapedProduct, Substitute
-from pydantic import HttpUrl
+from app.services.provider_registry import Providers, get_providers
 
 router = APIRouter(prefix="/products", tags=["Products"])
 
 
-@router.get("", response_model=dict)
+@router.get("", response_model=list[Product])
 async def search_products(
+    providers: Providers,
     q: str | None = Query(None, description="Free-text search"),
     style: str | None = Query(None, examples=["scandinavian"]),
     min_price: float | None = Query(None, ge=0),
@@ -16,17 +19,37 @@ async def search_products(
     source: Literal["ikea", "taobao"] | None = Query(None),
     in_stock: bool | None = Query(None),
 ):
-    # TODO: query product catalogue (DB / search index)
-    raise HTTPException(status_code=501, detail="Not implemented")
+    if not providers:
+        raise HTTPException(status_code=400, detail=f"Unknown source: {source!r}")
+
+    results: list[Product] = []
+    for provider in providers:
+        results.extend(
+            await provider.search(
+                q=q,
+                style=style,
+                min_price=min_price,
+                max_price=max_price,
+                in_stock=in_stock,
+            )
+        )
+    return results
 
 
 @router.get("/{id}", response_model=ProductDetail)
-async def get_product(id: UUID):
-    # TODO: fetch product by id
-    raise HTTPException(status_code=501, detail="Not implemented")
+async def get_product(
+    id: UUID,
+    providers: Providers,
+):
+    for provider in providers:
+        detail = await provider.get_product(str(id))
+        if detail is not None:
+            return detail
+    raise HTTPException(status_code=404, detail="Product not found")
 
 
-@router.get("/{id}/substitutes", response_model=dict)
+
+@router.get("/{id}/substitutes", response_model=list[Substitute])
 async def get_substitutes(
     id: UUID,
     max_price: float = Query(..., ge=0),
