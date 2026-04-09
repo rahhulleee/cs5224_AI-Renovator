@@ -58,7 +58,7 @@ class GeneratedProduct(BaseModel):
 class GenerationDone(BaseModel):
     generation_id: UUID
     status: Literal["done"]
-    image_url: HttpUrl
+    image_url: HttpUrl | None = None  # populated once image generation is wired up
     over_budget: bool
     total_cost: float
     products: list[GeneratedProduct] = []
