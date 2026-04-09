@@ -1,3 +1,69 @@
+# AI Renovator — Backend
+
+## Local Development
+
+### Prerequisites
+
+- [uv](https://docs.astral.sh/uv/getting-started/installation/) (`pip install uv` or `brew install uv`)
+- Python 3.12 (uv will use it automatically if available; install via `pyenv install 3.12.0` if needed)
+
+### 1. Clone and enter the directory
+
+```bash
+git clone <repo-url>
+cd cs5224_AI-Renovator
+```
+
+### 2. Install dependencies
+
+```bash
+uv sync
+```
+
+This creates a `.venv` and installs all packages from `uv.lock`.
+
+### 3. Configure environment variables
+
+```bash
+cp .env.example .env
+```
+
+Then edit `.env` and fill in your values:
+
+```
+GEMINI_API_KEY=your-gemini-api-key-here
+```
+
+### 4. Run the server
+
+```bash
+uv run uvicorn app.main:app --reload
+```
+
+The API will be available at `http://localhost:8000`.  
+Interactive docs: `http://localhost:8000/docs`
+
+---
+
+### Key endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/products?q=sofa&source=ikea` | Search IKEA products |
+| `GET` | `/products/{id}` | Get product detail |
+| `POST` | `/products/from-url` | Scrape + normalise any furniture URL |
+| `GET` | `/health` | Health check |
+
+#### POST /products/from-url
+
+```json
+{ "url": "https://www.ikea.com/us/en/p/klippan-loveseat-vissle-gray-s09010617/" }
+```
+
+Tries JSON-LD / OpenGraph first. Falls back to Gemini LLM extraction if structured data is incomplete. Returns a `ScrapedProduct`.
+
+---
+
 # RoomStyle: AWS Infrastructure Overview (Phase 1)
 
 This document summarizes the initial cloud environment established for the RoomStyle project in the **Asia Pacific (Singapore) `ap-southeast-1`** region.
