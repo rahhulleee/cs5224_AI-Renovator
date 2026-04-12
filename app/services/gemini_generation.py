@@ -101,18 +101,24 @@ def generate_room_image(
     extra = f" {prompt_text.strip()}" if prompt_text else ""
     furniture_names = ", ".join(label for _, _, label in furniture_images)
     instruction = (
-        f"You are a professional interior designer. "
-        f"Transform the room (first image) into a {style_name} style interior.{extra}\n\n"
+        f"You are a professional interior designer performing a room makeover.\n\n"
+        f"CRITICAL — room preservation rules (do not break these):\n"
+        f"- The output image MUST use the EXACT same room from the first photo as the background.\n"
+        f"- Do NOT change the walls, floor material, ceiling, windows, doorways, or room dimensions.\n"
+        f"- Do NOT change the camera angle, perspective, or field of view.\n"
+        f"- The room structure must look IDENTICAL to the input photo.\n\n"
         + (
-            f"Visually place the selected furniture items ({furniture_names}) "
-            f"into the room in their natural positions.\n\n"
+            f"Furniture to place:\n"
+            + "\n".join(f"- {label}" for _, _, label in furniture_images)
+            + f"\nPlace ONLY these exact items into the room as shown in their product images above.\n\n"
             if furniture_images else ""
         )
-        + "Requirements:\n"
-        f"- Generate a single photorealistic image of the fully redesigned room.\n"
-        f"- Preserve the room's structural layout: walls, windows, floor, and doorways.\n"
-        f"- Apply {style_name} style colours, lighting, textures, and complementary decor.\n"
-        f"- Replace any existing furniture with the selected items, arranged naturally."
+        + f"Style: {style_name}.{extra}\n\n"
+        + "Output requirements:\n"
+        f"- Do NOT add any furniture, plants, rugs, cushions, artwork, lamps, or objects beyond what is listed above.\n"
+        f"- Do NOT remove or replace any architectural features of the room.\n"
+        f"- Place only the listed furniture items — nothing else.\n"
+        f"- The result should look like a real photograph of that specific room with only those items placed inside it."
     )
     parts.append(types.Part(text=instruction))
 
