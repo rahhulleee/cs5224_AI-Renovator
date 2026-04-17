@@ -22,7 +22,17 @@ uv sync
 
 This creates a `.venv` and installs all packages from `uv.lock`.
 
-### 3. Configure environment variables
+### 3. Sync database schema with AWS RDS
+
+Before deploying, ensure your database schema is up to date:
+
+```bash
+python sync_schema.py
+```
+
+This will create all tables defined in your SQLAlchemy models in the RDS database.
+
+### 5. Configure environment variables
 
 ```bash
 cp .env.example .env
