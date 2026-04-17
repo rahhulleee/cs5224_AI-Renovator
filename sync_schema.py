@@ -13,7 +13,7 @@ app_dir = Path(__file__).parent / "app"
 sys.path.insert(0, str(app_dir))
 
 from app.db import Base, _engine
-
+import app.models.orm  # Important: import models so they are registered with Base
 def sync_schema():
     """Create all tables in the database based on SQLAlchemy models."""
     print("Connecting to database...")
