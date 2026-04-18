@@ -722,7 +722,7 @@ export default function Home() {
                 </div>
               </>
             ) : (
-              <div className="p-8 text-center">
+              <div className="p-8 text-center flex flex-col items-center">
                 <Camera size={48} className="mb-3 text-stone-300" />
                 <p className="text-sm font-medium text-stone-700">Upload Room Photo</p>
                 <p className="mt-1 text-xs text-stone-400">or drag &amp; drop an image here</p>
