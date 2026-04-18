@@ -65,6 +65,12 @@ class RefineRequest(BaseModel):
     message: str
 
 
+class LightingRequest(BaseModel):
+    """Atmospheric lighting: re-render an existing generation under a different light."""
+    generation_id: UUID
+    lighting_type: str  # "day" | "afternoon" | "night" | "cove" | "spot"
+
+
 # ── Routes ────────────────────────────────────────────────────────────────────
 
 @router.post("/generate/room", response_model=GenerationPending, status_code=202)
@@ -150,6 +156,28 @@ async def refine_generation(
         [],
         new_gen.prompt_text if new_gen else None,
         True,  # is_refinement — skip furniture search, use targeted edit prompt
+    )
+    return result
+
+
+@router.post("/generate/lighting", response_model=GenerationPending, status_code=202)
+async def apply_lighting(
+    body: LightingRequest,
+    background_tasks: BackgroundTasks,
+    db: DB,
+    current_user: CurrentUser,
+):
+    service = GenerationService()
+    result = service.submit_lighting(
+        body.generation_id,
+        body.lighting_type,
+        current_user,
+        db,
+    )
+    background_tasks.add_task(
+        service.run_lighting_pipeline,
+        str(result.generation_id),
+        body.lighting_type,
     )
     return result
 

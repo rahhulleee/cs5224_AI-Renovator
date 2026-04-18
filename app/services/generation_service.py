@@ -370,6 +370,110 @@ class GenerationService:
         finally:
             db.close()
 
+    def submit_lighting(
+        self,
+        generation_id: UUID,
+        lighting_type: str,
+        user_id: UUID,
+        db: Session,
+    ) -> GenerationPending:
+        """Create a new pending generation that applies an atmospheric lighting effect.
+
+        Args:
+            generation_id: The generation to relight
+            lighting_type: One of 'day', 'afternoon', 'night', 'cove', 'spot'
+            user_id: Requesting user (informational)
+            db: Database session
+
+        Returns:
+            GenerationPending with the new generation_id
+
+        Raises:
+            HTTPException 404: If the original generation is not found
+        """
+        from app.services.gemini_generation import LIGHTING_MODES
+        from fastapi import HTTPException as _HTTPException
+
+        if lighting_type.lower() not in LIGHTING_MODES:
+            raise _HTTPException(
+                status_code=422,
+                detail=f"lighting_type must be one of {LIGHTING_MODES}",
+            )
+
+        generation_store = DesignGenerationStore(db)
+        original = generation_store.get_by_id(generation_id)
+        if not original:
+            raise _HTTPException(status_code=404, detail="Generation not found")
+
+        new_gen = DesignGeneration(
+            project_id=original.project_id,
+            input_photo_id=original.generated_photo_id or original.input_photo_id,
+            style_name=original.style_name,
+            prompt_text=f"lighting:{lighting_type.lower()}",
+            status=GenerationStatus.pending,
+        )
+        generation_store.add(new_gen)
+        db.commit()
+        db.refresh(new_gen)
+
+        return GenerationPending(generation_id=new_gen.design_id, status="pending")
+
+    async def run_lighting_pipeline(
+        self,
+        design_id: str,
+        lighting_type: str,
+    ) -> None:
+        """Apply a lighting transformation in the background.
+
+        Args:
+            design_id: New DesignGeneration ID (already created as pending)
+            lighting_type: One of 'day', 'afternoon', 'night', 'cove', 'spot'
+        """
+        import asyncio
+        from app.services.gemini_generation import apply_lighting_image
+
+        db = SessionLocal()
+        try:
+            generation_store = DesignGenerationStore(db)
+            photo_store = PhotoStore(db)
+
+            gen = generation_store.get_by_id(design_id)
+            if gen and gen.input_photo_id:
+                photo = photo_store.get_by_id(gen.input_photo_id)
+                if photo:
+                    output_key = await asyncio.to_thread(
+                        apply_lighting_image,
+                        photo.s3_key,
+                        design_id,
+                        lighting_type,
+                    )
+                    gen_photo = Photo(
+                        project_id=gen.project_id,
+                        photo_type="generated",
+                        s3_key=output_key,
+                        file_name="output.jpg",
+                        mime_type="image/jpeg",
+                    )
+                    photo_store.add(gen_photo)
+                    generation_store.update_generated_photo(design_id, gen_photo.photo_id)
+
+            if gen:
+                generation_store.update_status(design_id, GenerationStatus.completed)
+            db.commit()
+
+        except Exception:
+            import logging
+            logging.getLogger(__name__).exception(
+                "Lighting pipeline failed for design_id %s", design_id
+            )
+            db.rollback()
+            gen = generation_store.get_by_id(design_id)
+            if gen:
+                generation_store.update_status(design_id, GenerationStatus.failed)
+                db.commit()
+        finally:
+            db.close()
+
     def _verify_project_ownership(self, project_id: UUID, user_id: UUID, db: Session) -> None:
         """Verify project exists and is owned by user.
 
