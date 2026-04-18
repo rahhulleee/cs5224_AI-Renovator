@@ -82,7 +82,7 @@ CREATE TABLE affiliate_clicks (
     project_id   UUID NOT NULL REFERENCES projects(project_id) ON DELETE CASCADE,
     product_id   UUID NOT NULL REFERENCES products(product_id) ON DELETE CASCADE,
     redirect_url TEXT NOT NULL,
-    clicked_at   TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    clicked_at   TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- INDEXES (PostgreSQL does not auto-index FK columns)
