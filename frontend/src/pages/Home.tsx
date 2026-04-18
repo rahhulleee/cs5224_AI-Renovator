@@ -11,11 +11,11 @@ const STYLES = ['Modern', 'Scandinavian', 'Cozy Warm', 'Futuristic', 'Nature', '
 
 type LightingMode = { key: string; label: string; icon: string }
 const LIGHTING_MODES: LightingMode[] = [
-  { key: 'day',       label: 'Day',           icon: 'sun' },
-  { key: 'afternoon', label: 'Afternoon',     icon: 'sunrise' },
-  { key: 'night',     label: 'Night',         icon: 'moon' },
-  { key: 'cove',      label: 'Cove',          icon: 'lightbulb' },
-  { key: 'spot',      label: 'Spot',          icon: 'flashlight' },
+  { key: 'day', label: 'Day', icon: 'sun' },
+  { key: 'afternoon', label: 'Afternoon', icon: 'sunrise' },
+  { key: 'night', label: 'Night', icon: 'moon' },
+  { key: 'cove', label: 'Cove', icon: 'lightbulb' },
+  { key: 'spot', label: 'Spot', icon: 'flashlight' },
 ]
 const STYLE_COLORS: Record<string, string> = {
   Modern: 'bg-stone-100',
@@ -188,7 +188,7 @@ export default function Home() {
   function addItem(product: Product) {
     if (selectedItems.length >= 5) return
     if (selectedItems.find((p) => p.product_id === product.product_id)) return
-    
+
     // Check budget
     const newTotal = selectedItemsTotal + product.price
     if (budgetLimit && newTotal > Number(budgetLimit)) {
@@ -285,27 +285,27 @@ export default function Home() {
 
       const gen = isManualMode
         ? await generateRoom(
-            token,
-            project.project_id,
-            photo_id,
-            selectedItems.map((item) => ({
-              name: item.name,
-              image_url: item.image_url,
-              product_id: item.product_id,
-              price: item.price,
-              source: item.source,
-              buy_url: item.buy_url,
-            })),
-            selectedStyle,
-            promptText,
-          )
+          token,
+          project.project_id,
+          photo_id,
+          selectedItems.map((item) => ({
+            name: item.name,
+            image_url: item.image_url,
+            product_id: item.product_id,
+            price: item.price,
+            source: item.source,
+            buy_url: item.buy_url,
+          })),
+          selectedStyle,
+          promptText,
+        )
         : await designForMe(
-            token,
-            project.project_id,
-            photo_id,
-            selectedStyle,
-            promptText,
-          )
+          token,
+          project.project_id,
+          photo_id,
+          selectedStyle,
+          promptText,
+        )
 
       // 4. Poll until done
       let attempts = 0
@@ -448,9 +448,8 @@ export default function Home() {
               <button
                 key={mode}
                 onClick={() => setDesignMode(mode)}
-                className={`flex-1 rounded-lg px-3 py-2 text-left transition-colors ${
-                  designMode === mode ? 'bg-white shadow-sm' : 'text-stone-500 hover:text-stone-700'
-                }`}
+                className={`flex-1 rounded-lg px-3 py-2 text-left transition-colors ${designMode === mode ? 'bg-white shadow-sm' : 'text-stone-500 hover:text-stone-700'
+                  }`}
               >
                 <p className="text-xs font-semibold text-rs-dark">{label}</p>
                 <p className="mt-1 text-[11px] leading-4 text-stone-500">{description}</p>
@@ -460,7 +459,7 @@ export default function Home() {
 
           <div className="flex flex-col gap-1">
             <label className="text-xs text-stone-500 font-medium">Total Budget (S$)</label>
-            <input 
+            <input
               type="number"
               className="input text-sm"
               placeholder="e.g. 1000"
@@ -477,9 +476,8 @@ export default function Home() {
                   <button
                     key={tab}
                     onClick={() => setLeftTab(tab)}
-                    className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                      leftTab === tab ? 'bg-white text-rs-dark shadow-sm' : 'text-stone-500 hover:text-stone-700'
-                    }`}
+                    className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-colors ${leftTab === tab ? 'bg-white text-rs-dark shadow-sm' : 'text-stone-500 hover:text-stone-700'
+                      }`}
                   >
                     {label}
                   </button>
@@ -557,11 +555,10 @@ export default function Home() {
                   <p className="text-xs text-stone-500">
                     Selected Items ({selectedItems.length}/5)
                   </p>
-                  <p className={`text-xs font-medium ${
-                    budgetLimit && selectedItemsTotal > Number(budgetLimit)
+                  <p className={`text-xs font-medium ${budgetLimit && selectedItemsTotal > Number(budgetLimit)
                       ? 'text-red-500'
                       : 'text-stone-500'
-                  }`}>
+                    }`}>
                     Total: S${selectedItemsTotal.toFixed(2)}
                     {budgetLimit ? ` / S$${budgetLimit}` : ''}
                   </p>
@@ -639,9 +636,8 @@ export default function Home() {
 
           {/* Drop zone */}
           <div
-            className={`relative rounded-2xl border-2 border-dashed transition-colors cursor-pointer flex flex-col items-center justify-center min-h-[180px] ${
-              dragOver ? 'border-rs-amber bg-amber-50' : 'border-rs-border hover:border-rs-light bg-cream/40'
-            }`}
+            className={`relative rounded-2xl border-2 border-dashed transition-colors cursor-pointer flex flex-col items-center justify-center min-h-[180px] ${dragOver ? 'border-rs-amber bg-amber-50' : 'border-rs-border hover:border-rs-light bg-cream/40'
+              }`}
             onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
             onDragLeave={() => setDragOver(false)}
             onDrop={onDrop}
@@ -699,195 +695,193 @@ export default function Home() {
             const displayed = historyView ?? genResult
             const isViewingHistory = historyView !== null
             return (
-            <div className="rounded-2xl border border-rs-border bg-cream/40 p-4 flex flex-col gap-3">
+              <div className="rounded-2xl border border-rs-border bg-cream/40 p-4 flex flex-col gap-3">
 
-              {/* Generated image with loading overlay */}
-              {displayed.image_url && (
-                <div className="relative group cursor-pointer" onClick={() => displayed.image_url && setSelectedImageUrl(displayed.image_url)}>
-                  <img
-                    src={displayed.image_url}
-                    alt="Generated room"
-                    className={`w-full rounded-xl border border-rs-border object-cover bg-stone-100 transition-opacity ${chatLoading || lightingLoading ? 'opacity-60' : 'opacity-100'}`}
-                  />
-                  <div className="absolute inset-0 rounded-xl bg-black/0 group-hover:bg-black/40 transition-colors duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
-                    <div className="flex items-center gap-2 bg-white/90 px-4 py-2 rounded-full font-medium text-sm text-rs-dark">
-                      <Maximize2 size={16} />
-                      View Full Size
+                {/* Generated image with loading overlay */}
+                {displayed.image_url && (
+                  <div className="relative group cursor-pointer" onClick={() => displayed.image_url && setSelectedImageUrl(displayed.image_url)}>
+                    <img
+                      src={displayed.image_url}
+                      alt="Generated room"
+                      className={`w-full rounded-xl border border-rs-border object-cover bg-stone-100 transition-opacity ${chatLoading || lightingLoading ? 'opacity-60' : 'opacity-100'}`}
+                    />
+                    <div className="absolute inset-0 rounded-xl bg-black/0 group-hover:bg-black/40 transition-colors duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                      <div className="flex items-center gap-2 bg-white/90 px-4 py-2 rounded-full font-medium text-sm text-rs-dark">
+                        <Maximize2 size={16} />
+                        View Full Size
+                      </div>
+                    </div>
+                    {isViewingHistory && (
+                      <div className="absolute top-2 left-2 bg-black/50 text-white text-xs px-2 py-1 rounded-lg backdrop-blur-sm">
+                        Viewing past version
+                      </div>
+                    )}
+                    {(chatLoading || lightingLoading) && (
+                      <div className="absolute inset-0 rounded-xl flex flex-col items-center justify-center gap-2 bg-white/30 backdrop-blur-[2px]">
+                        <div className="flex gap-2">
+                          <span className="w-2.5 h-2.5 bg-rs-amber rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                          <span className="w-2.5 h-2.5 bg-rs-amber rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                          <span className="w-2.5 h-2.5 bg-rs-amber rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                        </div>
+                        <p className="text-xs font-medium text-stone-600">
+                          {lightingLoading
+                            ? `Applying ${LIGHTING_MODES.find(m => m.key === activeLighting)?.label} lighting${lightingElapsed > 0 ? ` (${lightingElapsed}s)` : '…'}`
+                            : `Refining${refineElapsed > 0 ? ` (${refineElapsed}s)` : '…'}`}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Generation history strip */}
+                {genHistory.length > 0 && (
+                  <div className="flex flex-col gap-1.5">
+                    <p className="text-xs text-stone-400 font-medium">Versions</p>
+                    <div className="flex gap-2 overflow-x-auto pb-1">
+                      {genHistory.map((h, i) => {
+                        const isActive = historyView?.generation_id === h.generation_id
+                        return (
+                          <button key={i} onClick={() => setHistoryView(h)} className="shrink-0 relative" title={`Version ${i + 1}`}>
+                            <img
+                              src={h.image_url ?? ''}
+                              alt={`Version ${i + 1}`}
+                              className={`w-16 h-16 rounded-lg object-cover border-2 transition-colors ${isActive ? 'border-rs-amber' : 'border-rs-border hover:border-rs-amber/60'}`}
+                            />
+                            <span className="absolute bottom-1 right-1 text-[9px] bg-black/50 text-white rounded px-1 leading-tight">v{i + 1}</span>
+                          </button>
+                        )
+                      })}
+                      {/* Always-present "Now" thumbnail */}
+                      <button onClick={() => setHistoryView(null)} className="shrink-0 relative" title="Current version">
+                        <img
+                          src={genResult.image_url ?? ''}
+                          alt="Current"
+                          className={`w-16 h-16 rounded-lg object-cover border-2 transition-colors ${!isViewingHistory ? 'border-rs-amber' : 'border-rs-border hover:border-rs-amber/60'}`}
+                        />
+                        <span className="absolute bottom-1 right-1 text-[9px] bg-rs-amber text-white rounded px-1 leading-tight">Now</span>
+                      </button>
                     </div>
                   </div>
-                  {isViewingHistory && (
-                    <div className="absolute top-2 left-2 bg-black/50 text-white text-xs px-2 py-1 rounded-lg backdrop-blur-sm">
-                      Viewing past version
-                    </div>
-                  )}
-                  {(chatLoading || lightingLoading) && (
-                    <div className="absolute inset-0 rounded-xl flex flex-col items-center justify-center gap-2 bg-white/30 backdrop-blur-[2px]">
-                      <div className="flex gap-2">
-                        <span className="w-2.5 h-2.5 bg-rs-amber rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                        <span className="w-2.5 h-2.5 bg-rs-amber rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                        <span className="w-2.5 h-2.5 bg-rs-amber rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                      </div>
-                      <p className="text-xs font-medium text-stone-600">
-                        {lightingLoading
-                          ? `Applying ${LIGHTING_MODES.find(m => m.key === activeLighting)?.label} lighting${lightingElapsed > 0 ? ` (${lightingElapsed}s)` : '…'}`
-                          : `Refining${refineElapsed > 0 ? ` (${refineElapsed}s)` : '…'}`}
+                )}
+
+                {/* Items found — only shown for non-refinement results that have products */}
+                {!isRefinementResult && displayed.products.length > 0 && (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold text-rs-dark">
+                        <Check size={18} className="text-green-600 inline mr-1" />{displayed.products.length} items found
+                      </p>
+                      <p className="text-xs text-stone-500">
+                        Total: S${displayed.total_cost.toFixed(2)}
+                        {displayed.over_budget && <span className="text-red-500 ml-1">· over budget</span>}
                       </p>
                     </div>
-                  )}
-                </div>
-              )}
+                    <div className="flex flex-col gap-1.5 max-h-32 overflow-y-auto">
+                      {displayed.products.map((p) => (
+                        <div key={p.product_id} className="flex items-center justify-between gap-2 text-xs">
+                          {p.buy_url ? (
+                            <a href={p.buy_url} target="_blank" rel="noopener noreferrer" className="truncate flex-1 text-stone-700 hover:underline hover:text-rs-amber">
+                              {p.name}
+                            </a>
+                          ) : (
+                            <span className="truncate flex-1 text-stone-700">{p.name}</span>
+                          )}
+                          <span className="text-rs-amber font-medium shrink-0">S${p.price.toFixed(2)}</span>
+                          <a href={p.buy_url} target="_blank" rel="noopener noreferrer"
+                            className="text-rs-amber underline shrink-0 hover:text-rs-dark">Buy →</a>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
 
-              {/* Generation history strip */}
-              {genHistory.length > 0 && (
-                <div className="flex flex-col gap-1.5">
-                  <p className="text-xs text-stone-400 font-medium">Versions</p>
-                  <div className="flex gap-2 overflow-x-auto pb-1">
-                    {genHistory.map((h, i) => {
-                      const isActive = historyView?.generation_id === h.generation_id
+                {isRefinementResult && (
+                  <p className="text-xs text-stone-400 italic text-center">
+                    Refined design — view original for furniture list
+                  </p>
+                )}
+
+                {/* ── Atmospheric Lighting ─────────────────────────────────── */}
+                <div className="border-t border-rs-border pt-3 flex flex-col gap-2">
+                  <p className="text-xs font-medium text-stone-500">Atmospheric Lighting</p>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {LIGHTING_MODES.map((mode) => {
+                      const isActive = activeLighting === mode.key
                       return (
-                        <button key={i} onClick={() => setHistoryView(h)} className="shrink-0 relative" title={`Version ${i + 1}`}>
-                          <img
-                            src={h.image_url ?? ''}
-                            alt={`Version ${i + 1}`}
-                            className={`w-16 h-16 rounded-lg object-cover border-2 transition-colors ${isActive ? 'border-rs-amber' : 'border-rs-border hover:border-rs-amber/60'}`}
-                          />
-                          <span className="absolute bottom-1 right-1 text-[9px] bg-black/50 text-white rounded px-1 leading-tight">v{i + 1}</span>
+                        <button
+                          key={mode.key}
+                          onClick={() => handleLighting(mode.key)}
+                          disabled={lightingLoading || chatLoading}
+                          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium border transition-all ${isActive
+                              ? 'bg-rs-amber text-white border-rs-amber'
+                              : 'bg-cream/60 text-stone-600 border-rs-border hover:border-rs-amber/60 hover:bg-cream'
+                            } disabled:opacity-50 disabled:cursor-not-allowed`}
+                        >
+                          {getLightingIcon(mode.icon)}
+                          <span>{isActive && lightingLoading ? `${lightingElapsed}s…` : mode.label}</span>
                         </button>
                       )
                     })}
-                    {/* Always-present "Now" thumbnail */}
-                    <button onClick={() => setHistoryView(null)} className="shrink-0 relative" title="Current version">
-                      <img
-                        src={genResult.image_url ?? ''}
-                        alt="Current"
-                        className={`w-16 h-16 rounded-lg object-cover border-2 transition-colors ${!isViewingHistory ? 'border-rs-amber' : 'border-rs-border hover:border-rs-amber/60'}`}
-                      />
-                      <span className="absolute bottom-1 right-1 text-[9px] bg-rs-amber text-white rounded px-1 leading-tight">Now</span>
+                  </div>
+                  {lightingLoading && (
+                    <p className="text-xs text-stone-400 text-center">
+                      Applying {LIGHTING_MODES.find(m => m.key === activeLighting)?.label} lighting…
+                    </p>
+                  )}
+                </div>
+
+                {/* ── Chat refinement ─────────────────────────────────────── */}
+                <div className="border-t border-rs-border pt-3 flex flex-col gap-2">
+                  {/* Message history */}
+                  {chatMessages.length > 0 && (
+                    <div className="flex flex-col gap-2 max-h-36 overflow-y-auto px-0.5">
+                      {chatMessages.map((msg, i) => (
+                        <div key={i} className="flex flex-col gap-1">
+                          {/* User bubble */}
+                          <div className="self-end max-w-[85%] bg-rs-amber text-white text-xs px-3 py-1.5 rounded-2xl rounded-br-sm">
+                            {msg.text}
+                          </div>
+                          {/* Status bubble */}
+                          <div className={`self-start text-xs px-3 py-1.5 rounded-2xl rounded-bl-sm flex items-center gap-1.5 ${msg.status === 'refining'
+                              ? 'bg-stone-100 text-stone-500'
+                              : msg.status === 'done'
+                                ? 'bg-stone-100 text-stone-500'
+                                : 'bg-red-50 text-red-400'
+                            }`}>
+                            {msg.status === 'refining'
+                              ? <><TypingDots /><span>Refining{refineElapsed > 0 ? ` (${refineElapsed}s)` : '…'}</span></>
+                              : msg.status === 'done'
+                                ? <><Check size={14} className="inline mr-1" />Applied</>
+                                : <><X size={14} className="inline mr-1" />Failed — try again</>}
+                          </div>
+                        </div>
+                      ))}
+                      <div ref={chatEndRef} />
+                    </div>
+                  )}
+
+                  {/* Input bar */}
+                  <form onSubmit={handleRefine} className="flex gap-2">
+                    <input
+                      className="input flex-1 text-xs py-2"
+                      placeholder="Refine this design… e.g. more minimal, warmer tones"
+                      value={chatInput}
+                      onChange={(e) => setChatInput(e.target.value)}
+                      disabled={chatLoading}
+                    />
+                    <button
+                      type="submit"
+                      disabled={chatLoading || !chatInput.trim()}
+                      className="btn-primary text-xs px-3 py-2 shrink-0 flex items-center justify-center min-w-[2rem]"
+                    >
+                      {chatLoading ? <TypingDots /> : '↑'}
                     </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Items found — only shown for non-refinement results that have products */}
-              {!isRefinementResult && displayed.products.length > 0 && (
-                <>
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold text-rs-dark">
-                      <Check size={18} className="text-green-600 inline mr-1" />{displayed.products.length} items found
-                    </p>
-                    <p className="text-xs text-stone-500">
-                      Total: S${displayed.total_cost.toFixed(2)}
-                      {displayed.over_budget && <span className="text-red-500 ml-1">· over budget</span>}
-                    </p>
-                  </div>
-                  <div className="flex flex-col gap-1.5 max-h-32 overflow-y-auto">
-                    {displayed.products.map((p) => (
-                      <div key={p.product_id} className="flex items-center justify-between gap-2 text-xs">
-                        {p.buy_url ? (
-                          <a href={p.buy_url} target="_blank" rel="noopener noreferrer" className="truncate flex-1 text-stone-700 hover:underline hover:text-rs-amber">
-                            {p.name}
-                          </a>
-                        ) : (
-                          <span className="truncate flex-1 text-stone-700">{p.name}</span>
-                        )}
-                        <span className="text-rs-amber font-medium shrink-0">S${p.price.toFixed(2)}</span>
-                        <a href={p.buy_url} target="_blank" rel="noopener noreferrer"
-                          className="text-rs-amber underline shrink-0 hover:text-rs-dark">Buy →</a>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-
-              {isRefinementResult && (
-                <p className="text-xs text-stone-400 italic text-center">
-                  Refined design — view original for furniture list
-                </p>
-              )}
-
-              {/* ── Atmospheric Lighting ─────────────────────────────────── */}
-              <div className="border-t border-rs-border pt-3 flex flex-col gap-2">
-                <p className="text-xs font-medium text-stone-500">Atmospheric Lighting</p>
-                <div className="flex gap-1.5 flex-wrap">
-                  {LIGHTING_MODES.map((mode) => {
-                    const isActive = activeLighting === mode.key
-                    return (
-                      <button
-                        key={mode.key}
-                        onClick={() => handleLighting(mode.key)}
-                        disabled={lightingLoading || chatLoading}
-                        className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium border transition-all ${
-                          isActive
-                            ? 'bg-rs-amber text-white border-rs-amber'
-                            : 'bg-cream/60 text-stone-600 border-rs-border hover:border-rs-amber/60 hover:bg-cream'
-                        } disabled:opacity-50 disabled:cursor-not-allowed`}
-                      >
-                        {getLightingIcon(mode.icon)}
-                        <span>{isActive && lightingLoading ? `${lightingElapsed}s…` : mode.label}</span>
-                      </button>
-                    )
-                  })}
-                </div>
-                {lightingLoading && (
+                  </form>
                   <p className="text-xs text-stone-400 text-center">
-                    Applying {LIGHTING_MODES.find(m => m.key === activeLighting)?.label} lighting…
+                    Describe how to change the design — AI will regenerate it
                   </p>
-                )}
+                </div>
               </div>
-
-              {/* ── Chat refinement ─────────────────────────────────────── */}
-              <div className="border-t border-rs-border pt-3 flex flex-col gap-2">
-                {/* Message history */}
-                {chatMessages.length > 0 && (
-                  <div className="flex flex-col gap-2 max-h-36 overflow-y-auto px-0.5">
-                    {chatMessages.map((msg, i) => (
-                      <div key={i} className="flex flex-col gap-1">
-                        {/* User bubble */}
-                        <div className="self-end max-w-[85%] bg-rs-amber text-white text-xs px-3 py-1.5 rounded-2xl rounded-br-sm">
-                          {msg.text}
-                        </div>
-                        {/* Status bubble */}
-                        <div className={`self-start text-xs px-3 py-1.5 rounded-2xl rounded-bl-sm flex items-center gap-1.5 ${
-                          msg.status === 'refining'
-                            ? 'bg-stone-100 text-stone-500'
-                            : msg.status === 'done'
-                            ? 'bg-stone-100 text-stone-500'
-                            : 'bg-red-50 text-red-400'
-                        }`}>
-                          {msg.status === 'refining'
-                            ? <><TypingDots /><span>Refining{refineElapsed > 0 ? ` (${refineElapsed}s)` : '…'}</span></>
-                            : msg.status === 'done'
-                            ? <><Check size={14} className="inline mr-1" />Applied</>
-                            : <><X size={14} className="inline mr-1" />Failed — try again</>}
-                        </div>
-                      </div>
-                    ))}
-                    <div ref={chatEndRef} />
-                  </div>
-                )}
-
-                {/* Input bar */}
-                <form onSubmit={handleRefine} className="flex gap-2">
-                  <input
-                    className="input flex-1 text-xs py-2"
-                    placeholder="Refine this design… e.g. more minimal, warmer tones"
-                    value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
-                    disabled={chatLoading}
-                  />
-                  <button
-                    type="submit"
-                    disabled={chatLoading || !chatInput.trim()}
-                    className="btn-primary text-xs px-3 py-2 shrink-0 flex items-center justify-center min-w-[2rem]"
-                  >
-                    {chatLoading ? <TypingDots /> : '↑'}
-                  </button>
-                </form>
-                <p className="text-xs text-stone-400 text-center">
-                  Describe how to change the design — AI will regenerate it
-                </p>
-              </div>
-            </div>
             )
           })()}
         </div>
@@ -895,7 +889,7 @@ export default function Home() {
         {/* ── RIGHT: Inspirations + Products ───────────────────────────────── */}
         <div className="card p-4 flex flex-col gap-4 h-full">
           <h2 className="font-semibold text-sm text-stone-700">3. Inspirations</h2>
-          
+
           {/* Style grid - smaller section */}
           <div className="grid grid-cols-3 gap-2 pb-4 border-b border-rs-border">
             {STYLES.map((s) => (
@@ -910,9 +904,8 @@ export default function Home() {
                     setBrowseResults(r)
                   } finally { setBrowseLoading(false) }
                 }}
-                className={`${STYLE_COLORS[s]} rounded-lg p-2 text-center border transition-all text-xs ${
-                  selectedStyle === s ? 'border-rs-amber ring-1 ring-rs-amber' : 'border-rs-border hover:border-rs-light'
-                }`}
+                className={`${STYLE_COLORS[s]} rounded-lg p-2 text-center border transition-all text-xs ${selectedStyle === s ? 'border-rs-amber ring-1 ring-rs-amber' : 'border-rs-border hover:border-rs-light'
+                  }`}
                 title={s}
               >
                 <p className="text-[11px] font-medium text-stone-700 truncate">{s}</p>

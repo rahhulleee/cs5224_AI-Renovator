@@ -4,7 +4,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from app.db import DB
-from app.models.schemas import BudgetState
+from app.models.schemas import BudgetState, GenerationDone
 from app.models.schemas import Project as ProjectSchema
 from app.services.auth import CurrentUser
 from app.services.project_service import ProjectService
@@ -85,3 +85,10 @@ async def get_budget(id: UUID, db: DB, current_user: CurrentUser):
 async def update_budget(id: UUID, body: UpdateBudgetRequest, db: DB, current_user: CurrentUser):
     service = ProjectService()
     return service.update_budget(id, current_user, body.budget_limit, db)
+
+
+@router.get("/{id}/generations", response_model=list[GenerationDone])
+async def get_project_generations(id: UUID, db: DB, current_user: CurrentUser):
+    service = ProjectService()
+    return service.get_project_generations(id, current_user, db)
+
