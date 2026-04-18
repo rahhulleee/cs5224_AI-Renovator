@@ -169,3 +169,107 @@ def generate_room_image(
         design_id, output_key, len(image_bytes),
     )
     return output_key
+
+
+def refine_room_image(
+    photo_s3_key: str,
+    design_id: str,
+    style_name: str,
+    prompt_text: str | None,
+) -> str:
+    """Apply a targeted refinement to an already-generated room image.
+
+    Unlike generate_room_image, this function does not place furniture.
+    It sends the existing design to Gemini with an edit instruction,
+    asking it to apply only the specific change requested.
+
+    Parameters
+    ----------
+    photo_s3_key:  S3 key of the previously generated room image.
+    design_id:     UUID string of the new DesignGeneration record.
+    style_name:    e.g. "scandinavian", "modern", "industrial".
+    prompt_text:   The refinement instruction from the user.
+
+    Returns
+    -------
+    The S3 key of the refined output image.
+    """
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        raise ValueError("GEMINI_API_KEY environment variable is not set")
+
+    s3 = _s3()
+    obj = s3.get_object(Bucket=_BUCKET, Key=photo_s3_key)
+    room_bytes: bytes = obj["Body"].read()
+    room_mime: str = obj.get("ContentType") or "image/jpeg"
+
+    logger.info(
+        "gemini_refine design_id=%s model=%s style=%s",
+        design_id, _MODEL, style_name,
+    )
+
+    change = prompt_text.strip() if prompt_text else f"Refine the design to better match the {style_name} style."
+
+    parts: list[types.Part] = [
+        types.Part(inline_data=types.Blob(data=room_bytes, mime_type=room_mime)),
+        types.Part(text=(
+            f"This is the current room design. Apply ONLY the following change:\n\n"
+            f"{change}\n\n"
+            f"Rules:\n"
+            f"- Do NOT change the camera angle, perspective, or crop.\n"
+            f"- If the change asks to MOVE a piece of furniture: place it in the new position and REMOVE it from its old position — it must not appear in both places.\n"
+            f"- If the change asks to SWAP or REARRANGE furniture: each piece must appear exactly once in its new position; do not duplicate any item.\n"
+            f"- Do NOT add new furniture or decorations that are not already in the image unless explicitly requested.\n"
+            f"- Do NOT remove furniture unless the change explicitly asks for removal or a move.\n"
+            f"- Keep the room background (walls, floor, ceiling, windows) exactly as shown.\n"
+            f"- Do not add rugs, plants, lamps, artwork, or decorations unless explicitly requested.\n"
+            f"Style: {style_name}.\n\n"
+            f"Output the modified room image."
+        )),
+    ]
+
+    try:
+        client = genai.Client(api_key=api_key)
+        response = client.models.generate_content(
+            model=_MODEL,
+            contents=[types.Content(role="user", parts=parts)],
+            config=types.GenerateContentConfig(
+                response_modalities=["IMAGE", "TEXT"],
+            ),
+        )
+    except Exception as e:
+        logger.error("Gemini refine API call failed: %s", str(e))
+        raise RuntimeError(f"Gemini API call failed: {str(e)}") from e
+
+    image_bytes: bytes | None = None
+    for candidate in response.candidates or []:
+        for part in candidate.content.parts or []:
+            if part.inline_data and part.inline_data.data:
+                image_bytes = part.inline_data.data
+                break
+        if image_bytes:
+            break
+
+    if not image_bytes:
+        finish = (
+            response.candidates[0].finish_reason
+            if response.candidates else "unknown"
+        )
+        raise RuntimeError(
+            f"Gemini returned no image for refinement design_id={design_id}. "
+            f"finish_reason={finish}"
+        )
+
+    output_key = f"generations/{design_id}/output.jpg"
+    s3.put_object(
+        Bucket=_BUCKET,
+        Key=output_key,
+        Body=image_bytes,
+        ContentType="image/jpeg",
+    )
+
+    logger.info(
+        "gemini_refine_upload design_id=%s s3_key=%s bytes=%d",
+        design_id, output_key, len(image_bytes),
+    )
+    return output_key
