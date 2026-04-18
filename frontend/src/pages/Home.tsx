@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
+import { Sun, Sunrise, Moon, Lightbulb, Flashlight, Sparkles, Camera, Armchair, Check, X, ArrowRight, Search, Download, Maximize2, Loader, Plus } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { indexFromUrl, searchProducts, createProject, presignUpload, uploadFileToS3, generateRoom, designForMe, pollGeneration, refineGeneration, applyLighting } from '../api'
 import { Product, GenerationDone } from '../types'
@@ -10,11 +11,11 @@ const STYLES = ['Modern', 'Scandinavian', 'Cozy Warm', 'Futuristic', 'Nature', '
 
 type LightingMode = { key: string; label: string; icon: string }
 const LIGHTING_MODES: LightingMode[] = [
-  { key: 'day',       label: 'Day',           icon: '☀️' },
-  { key: 'afternoon', label: 'Afternoon',     icon: '🌅' },
-  { key: 'night',     label: 'Night',         icon: '🌙' },
-  { key: 'cove',      label: 'Cove',          icon: '💡' },
-  { key: 'spot',      label: 'Spot',          icon: '🔦' },
+  { key: 'day',       label: 'Day',           icon: 'sun' },
+  { key: 'afternoon', label: 'Afternoon',     icon: 'sunrise' },
+  { key: 'night',     label: 'Night',         icon: 'moon' },
+  { key: 'cove',      label: 'Cove',          icon: 'lightbulb' },
+  { key: 'spot',      label: 'Spot',          icon: 'flashlight' },
 ]
 const STYLE_COLORS: Record<string, string> = {
   Modern: 'bg-stone-100',
@@ -34,6 +35,59 @@ function TypingDots() {
       <span className="w-1.5 h-1.5 bg-stone-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
       <span className="w-1.5 h-1.5 bg-stone-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
     </span>
+  )
+}
+
+function getLightingIcon(iconKey: string) {
+  const iconMap: Record<string, React.ReactNode> = {
+    'sun': <Sun size={16} />,
+    'sunrise': <Sunrise size={16} />,
+    'moon': <Moon size={16} />,
+    'lightbulb': <Lightbulb size={16} />,
+    'flashlight': <Flashlight size={16} />,
+  }
+  return iconMap[iconKey] || null
+}
+
+function ImageModal({ image_url, onClose }: { image_url: string; onClose: () => void }) {
+  const downloadImage = async () => {
+    try {
+      const response = await fetch(image_url)
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `roomstyle-design-${Date.now()}.png`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (err) {
+      console.error('Download failed:', err)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full flex flex-col">
+        <div className="flex items-center justify-between p-6 border-b border-rs-border">
+          <h3 className="text-lg font-semibold text-rs-dark">Generated Design</h3>
+          <button onClick={onClose} className="p-2 hover:bg-stone-100 rounded-full transition-colors">
+            <X size={24} className="text-stone-600" />
+          </button>
+        </div>
+        <div className="flex-1 flex items-center justify-center p-6 bg-stone-50 overflow-auto">
+          <img src={image_url} alt="Generated design" className="max-w-full max-h-[70vh] rounded-2xl shadow-lg object-contain" />
+        </div>
+        <div className="flex items-center gap-3 p-6 border-t border-rs-border justify-end">
+          <button onClick={onClose} className="btn-secondary">Close</button>
+          <button onClick={downloadImage} className="btn-primary flex items-center gap-2">
+            <Download size={18} />
+            Download
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -82,6 +136,9 @@ export default function Home() {
   const [lightingLoading, setLightingLoading] = useState(false)
   const [activeLighting, setActiveLighting] = useState<string | null>(null)
   const [lightingElapsed, setLightingElapsed] = useState(0)
+
+  // ── Image modal ─────────────────────────────────────────────────────────────
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null)
 
   // Elapsed timer while a refinement is in-flight
   useEffect(() => {
@@ -375,7 +432,7 @@ export default function Home() {
       </div>
 
       {/* 3-column layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.4fr_1fr] gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-[0.9fr_1.8fr_1.3fr] gap-5">
 
         {/* ── LEFT: Add Furniture ───────────────────────────────────────────── */}
         <div className="card p-4 flex flex-col gap-4">
@@ -459,7 +516,7 @@ export default function Home() {
                     onChange={(e) => setBrowseQuery(e.target.value)}
                   />
                   <button type="submit" disabled={browseLoading} className="btn-primary text-sm px-3">
-                    {browseLoading ? '…' : '🔍'}
+                    {browseLoading ? <Loader size={16} /> : <Search size={16} />}
                   </button>
                 </form>
               )}
@@ -471,7 +528,7 @@ export default function Home() {
                     <div key={p.product_id} className="flex items-center gap-2 p-2 rounded-xl border border-rs-border bg-cream/40">
                       {p.image_url
                         ? <img src={p.image_url} className="w-10 h-10 rounded-lg object-cover bg-stone-100 shrink-0" alt="" />
-                        : <div className="w-10 h-10 rounded-lg bg-cream flex items-center justify-center text-lg shrink-0">🛋️</div>}
+                        : <div className="w-10 h-10 rounded-lg bg-cream flex items-center justify-center shrink-0"><Armchair size={20} className="text-stone-300" /></div>}
                       <div className="flex-1 min-w-0">
                         {p.buy_url ? (
                           <a href={p.buy_url} target="_blank" rel="noopener noreferrer" className="text-xs font-medium truncate hover:underline hover:text-rs-amber block">
@@ -487,7 +544,7 @@ export default function Home() {
                         disabled={isSelected(p.product_id) || selectedItems.length >= 5}
                         className="btn-primary text-xs py-1 px-2 shrink-0"
                       >
-                        {isSelected(p.product_id) ? '✓' : '+'}
+                        {isSelected(p.product_id) ? <Check size={14} /> : <Plus size={14} />}
                       </button>
                     </div>
                   ))}
@@ -518,7 +575,7 @@ export default function Home() {
                         <div className="w-16 h-16 rounded-xl overflow-hidden border border-rs-border bg-cream">
                           {item.image_url
                             ? <img src={item.image_url} className="w-full h-full object-cover" alt={item.name} />
-                            : <div className="w-full h-full flex items-center justify-center text-2xl">🛋️</div>}
+                            : <div className="w-full h-full flex items-center justify-center"><Armchair size={32} className="text-stone-300" /></div>}
                         </div>
                         <button
                           onClick={() => removeItem(item.product_id)}
@@ -604,7 +661,7 @@ export default function Home() {
               </>
             ) : (
               <div className="text-center p-6">
-                <div className="text-4xl mb-2">📷</div>
+                <Camera size={48} className="text-stone-300 mb-2" />
                 <p className="text-sm font-medium text-stone-600">Upload Room Photo</p>
                 <p className="text-xs text-stone-400 mt-1">or drag &amp; drop an image here</p>
                 <p className="text-xs text-stone-300 mt-1">JPG, PNG (Max 10MB)</p>
@@ -625,9 +682,9 @@ export default function Home() {
             disabled={generating}
             className="btn-primary w-full flex items-center justify-center gap-2 py-3"
           >
-            <span>✨</span>
+            <Sparkles size={18} />
             <span>{generating ? genStatus || 'Generating…' : isManualMode ? 'Generate With My Items' : 'Generate Design For Me'}</span>
-            {!generating && <span>→</span>}
+            {!generating && <ArrowRight size={16} />}
           </button>
           <p className="text-xs text-stone-400 text-center -mt-2">
             {token
@@ -646,12 +703,18 @@ export default function Home() {
 
               {/* Generated image with loading overlay */}
               {displayed.image_url && (
-                <div className="relative">
+                <div className="relative group cursor-pointer" onClick={() => displayed.image_url && setSelectedImageUrl(displayed.image_url)}>
                   <img
                     src={displayed.image_url}
                     alt="Generated room"
                     className={`w-full rounded-xl border border-rs-border object-cover bg-stone-100 transition-opacity ${chatLoading || lightingLoading ? 'opacity-60' : 'opacity-100'}`}
                   />
+                  <div className="absolute inset-0 rounded-xl bg-black/0 group-hover:bg-black/40 transition-colors duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                    <div className="flex items-center gap-2 bg-white/90 px-4 py-2 rounded-full font-medium text-sm text-rs-dark">
+                      <Maximize2 size={16} />
+                      View Full Size
+                    </div>
+                  </div>
                   {isViewingHistory && (
                     <div className="absolute top-2 left-2 bg-black/50 text-white text-xs px-2 py-1 rounded-lg backdrop-blur-sm">
                       Viewing past version
@@ -710,7 +773,7 @@ export default function Home() {
                 <>
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-semibold text-rs-dark">
-                      ✓ {displayed.products.length} items found
+                      <Check size={18} className="text-green-600 inline mr-1" />{displayed.products.length} items found
                     </p>
                     <p className="text-xs text-stone-500">
                       Total: S${displayed.total_cost.toFixed(2)}
@@ -759,7 +822,7 @@ export default function Home() {
                             : 'bg-cream/60 text-stone-600 border-rs-border hover:border-rs-amber/60 hover:bg-cream'
                         } disabled:opacity-50 disabled:cursor-not-allowed`}
                       >
-                        <span>{mode.icon}</span>
+                        {getLightingIcon(mode.icon)}
                         <span>{isActive && lightingLoading ? `${lightingElapsed}s…` : mode.label}</span>
                       </button>
                     )
@@ -794,8 +857,8 @@ export default function Home() {
                           {msg.status === 'refining'
                             ? <><TypingDots /><span>Refining{refineElapsed > 0 ? ` (${refineElapsed}s)` : '…'}</span></>
                             : msg.status === 'done'
-                            ? '✓ Applied'
-                            : '✗ Failed — try again'}
+                            ? <><Check size={14} className="inline mr-1" />Applied</>
+                            : <><X size={14} className="inline mr-1" />Failed — try again</>}
                         </div>
                       </div>
                     ))}
@@ -829,58 +892,48 @@ export default function Home() {
           })()}
         </div>
 
-        {/* ── RIGHT: Inspirations + Style browse ───────────────────────────── */}
-        <div className="flex flex-col gap-4">
-          <div className="card p-4">
-            <h2 className="font-semibold text-sm text-stone-700 mb-3">3. Inspirations</h2>
-            <div className="grid grid-cols-2 gap-2">
-              {STYLES.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setSelectedStyle(s)}
-                  className={`${STYLE_COLORS[s]} rounded-xl p-3 text-center border transition-all ${
-                    selectedStyle === s ? 'border-rs-amber ring-1 ring-rs-amber' : 'border-rs-border hover:border-rs-light'
-                  }`}
-                >
-                  <p className="text-xs font-medium text-stone-700">{s}</p>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="card p-4 flex-1">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="font-semibold text-sm text-stone-700">4. Quick Browse</h2>
+        {/* ── RIGHT: Inspirations + Products ───────────────────────────────── */}
+        <div className="card p-4 flex flex-col gap-4 h-full">
+          <h2 className="font-semibold text-sm text-stone-700">3. Inspirations</h2>
+          
+          {/* Style grid - smaller section */}
+          <div className="grid grid-cols-3 gap-2 pb-4 border-b border-rs-border">
+            {STYLES.map((s) => (
               <button
+                key={s}
                 onClick={async () => {
+                  setSelectedStyle(s)
+                  // Auto-load products for this style
                   setBrowseLoading(true)
                   try {
-                    const r = await searchProducts({ style: selectedStyle })
+                    const r = await searchProducts({ style: s })
                     setBrowseResults(r)
-                    setLeftTab('browse')
                   } finally { setBrowseLoading(false) }
                 }}
-                disabled={!isManualMode}
-                className={`text-xs font-medium ${
-                  isManualMode
-                    ? 'text-rs-amber hover:text-rs-dark'
-                    : 'text-stone-300 cursor-not-allowed'
+                className={`${STYLE_COLORS[s]} rounded-lg p-2 text-center border transition-all text-xs ${
+                  selectedStyle === s ? 'border-rs-amber ring-1 ring-rs-amber' : 'border-rs-border hover:border-rs-light'
                 }`}
+                title={s}
               >
-                {browseLoading ? 'Loading…' : `Load ${selectedStyle}`}
+                <p className="text-[11px] font-medium text-stone-700 truncate">{s}</p>
               </button>
-            </div>
-            {!isManualMode ? (
-              <p className="text-xs text-stone-400 italic">
-                Quick Browse is available in Use My Items mode.
-              </p>
+            ))}
+          </div>
+
+          {/* Products section - larger area */}
+          <div className="flex-1 flex flex-col min-h-0">
+            <p className="text-xs font-medium text-stone-500 mb-2">Curated for {selectedStyle}</p>
+            {browseLoading ? (
+              <div className="flex items-center justify-center py-8 text-stone-400">
+                <Loader size={16} className="animate-spin mr-2" /> Loading…
+              </div>
             ) : browseResults.length > 0 ? (
-              <div className="flex flex-col gap-2 max-h-64 overflow-y-auto">
-                {browseResults.slice(0, 6).map((p) => (
-                  <div key={p.product_id} className="flex items-center gap-2 p-1.5 rounded-xl border border-rs-border bg-cream/30 hover:bg-cream/70 transition-colors">
+              <div className="flex flex-col gap-2 overflow-y-auto flex-1">
+                {browseResults.slice(0, 12).map((p) => (
+                  <div key={p.product_id} className="flex items-center gap-2 p-2 rounded-lg border border-rs-border bg-cream/30 hover:bg-cream/70 transition-colors">
                     {p.image_url
-                      ? <img src={p.image_url} className="w-9 h-9 rounded-lg object-cover bg-stone-100 shrink-0" alt="" />
-                      : <div className="w-9 h-9 rounded-lg bg-cream flex items-center justify-center text-base shrink-0">🛋️</div>}
+                      ? <img src={p.image_url} className="w-10 h-10 rounded-lg object-cover bg-stone-100 shrink-0" alt="" />
+                      : <div className="w-10 h-10 rounded-lg bg-cream flex items-center justify-center shrink-0"><Armchair size={18} className="text-stone-300" /></div>}
                     <div className="flex-1 min-w-0">
                       {p.buy_url ? (
                         <a href={p.buy_url} target="_blank" rel="noopener noreferrer" className="text-xs font-medium truncate hover:underline hover:text-rs-amber block">
@@ -894,20 +947,30 @@ export default function Home() {
                     <button
                       onClick={() => addItem(p)}
                       disabled={isSelected(p.product_id) || selectedItems.length >= 5}
-                      className="btn-primary text-xs py-0.5 px-2 shrink-0"
+                      className="btn-primary text-xs py-1 px-2 shrink-0"
                     >
-                      {isSelected(p.product_id) ? '✓' : '+'}
+                      {isSelected(p.product_id) ? <Check size={14} /> : <Plus size={14} />}
                     </button>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-stone-400 italic">Click "Load {selectedStyle}" to browse items</p>
+              <div className="flex items-center justify-center py-8 text-stone-400">
+                <p className="text-xs italic">Select a style to browse curated products</p>
+              </div>
             )}
           </div>
         </div>
 
       </div>
+
+      {/* Image Modal */}
+      {selectedImageUrl && (
+        <ImageModal
+          image_url={selectedImageUrl}
+          onClose={() => setSelectedImageUrl(null)}
+        />
+      )}
     </main>
   )
 }

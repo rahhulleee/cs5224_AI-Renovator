@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import AuthModal from './AuthModal'
+import { Layout, Search, FolderHeart, LogIn, LogOut, Sparkles } from 'lucide-react'
 
 export default function Header() {
   const { token, clearAuth } = useAuth()
@@ -9,44 +10,64 @@ export default function Header() {
 
   return (
     <>
-      <header className="bg-white border-b border-rs-border sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 h-14 flex items-center gap-6">
-          {/* Logo */}
-          <NavLink to="/" className="flex items-center gap-2 font-semibold text-rs-dark shrink-0">
-            <span className="text-xl">🛋️</span>
-            <span>RoomStyle AI</span>
-          </NavLink>
+      <header className="sticky top-0 z-40 w-full bg-white/80 backdrop-blur-md border-b border-rs-border/50">
+        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-2.5 group">
+            <div className="w-10 h-10 bg-rs-dark rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-105 transition-transform">
+              <Sparkles size={22} />
+            </div>
+            <span className="text-xl font-bold tracking-tight text-rs-dark font-serif">RoomStyle AI</span>
+          </Link>
 
-          {/* Nav */}
-          <nav className="flex items-center gap-1 flex-1">
-            {[
-              { to: '/',        label: 'Home' },
-              { to: '/browse',  label: 'Browse Furniture' },
-              { to: '/projects', label: 'My Projects' },
-            ].map(({ to, label }) => (
-              <NavLink
-                key={to}
-                to={to}
-                end={to === '/'}
-                className={({ isActive }) =>
-                  `px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                    isActive
-                      ? 'bg-cream text-rs-dark'
-                      : 'text-stone-500 hover:text-stone-800 hover:bg-cream/60'
-                  }`
-                }
-              >
-                {label}
-              </NavLink>
-            ))}
+          <nav className="hidden md:flex items-center gap-2 bg-stone-100/50 p-1.5 rounded-full border border-stone-200/50">
+            <NavLink 
+              to="/" 
+              className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : 'nav-link-inactive'}`}
+            >
+              <div className="flex items-center gap-2">
+                <Layout size={16} />
+                <span>Design</span>
+              </div>
+            </NavLink>
+            <NavLink 
+              to="/browse" 
+              className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : 'nav-link-inactive'}`}
+            >
+              <div className="flex items-center gap-2">
+                <Search size={16} />
+                <span>Browse</span>
+              </div>
+            </NavLink>
+            <NavLink 
+              to="/projects" 
+              className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : 'nav-link-inactive'}`}
+            >
+              <div className="flex items-center gap-2">
+                <FolderHeart size={16} />
+                <span>My Projects</span>
+              </div>
+            </NavLink>
           </nav>
 
-          {/* Auth */}
-          {token ? (
-            <button onClick={clearAuth} className="btn-secondary text-sm">Sign out</button>
-          ) : (
-            <button onClick={() => setShowAuth(true)} className="btn-secondary text-sm">Sign in</button>
-          )}
+          <div className="flex items-center gap-4">
+            {token ? (
+              <button 
+                onClick={clearAuth}
+                className="btn-secondary !py-2 !px-4 text-sm"
+              >
+                <LogOut size={16} />
+                <span>Sign Out</span>
+              </button>
+            ) : (
+              <button 
+                onClick={() => setShowAuth(true)}
+                className="btn-primary !py-2 !px-5 text-sm"
+              >
+                <LogIn size={16} />
+                <span>Sign In</span>
+              </button>
+            )}
+          </div>
         </div>
       </header>
 

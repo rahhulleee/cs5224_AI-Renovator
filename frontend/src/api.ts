@@ -151,3 +151,19 @@ export const getCart = (token: string, projectId: string) =>
     undefined,
     token,
   )
+
+// ── Project Details ──────────────────────────────────────────────────────────
+
+export const getProjectGenerations = (token: string, projectId: string) =>
+  request<import('./types').GenerationDone[]>(
+    `/projects/${projectId}/generations`,
+    undefined,
+    token,
+  )
+
+export const getProjectPhotos = (token: string, projectId: string) =>
+  request<Array<{ photo_id: string; s3_key: string; url: string }>>(
+    `/projects/${projectId}/photos`,
+    undefined,
+    token,
+  )

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,21 +6,44 @@
 
 @layer base {
   body {
-    @apply bg-cream text-stone-800 antialiased;
+    @apply bg-[#FDFCFB] text-stone-800 antialiased font-sans;
+  }
+  h1, h2, h3, h4 {
+    @apply font-semibold tracking-tight;
   }
 }
 
 @layer components {
   .btn-primary {
-    @apply bg-rs-amber hover:bg-rs-dark text-white font-semibold px-5 py-2.5 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply bg-rs-dark hover:bg-stone-900 text-white font-medium px-6 py-3 rounded-full transition-all duration-300 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2;
   }
   .btn-secondary {
-    @apply bg-white hover:bg-cream border border-rs-border text-stone-700 font-medium px-4 py-2 rounded-xl transition-colors;
+    @apply bg-white hover:bg-stone-50 border border-rs-border text-stone-700 font-medium px-5 py-2.5 rounded-full transition-all duration-300 flex items-center justify-center gap-2;
   }
   .card {
-    @apply bg-white rounded-2xl shadow-sm border border-rs-border;
+    @apply bg-white rounded-3xl shadow-premium border border-rs-border/50 overflow-hidden transition-all duration-300;
   }
   .input {
-    @apply w-full border border-rs-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-rs-amber/40 bg-white;
+    @apply w-full border border-rs-border rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rs-amber/20 focus:border-rs-amber bg-white transition-all;
   }
+  .nav-link {
+    @apply px-4 py-2 rounded-full text-sm font-medium transition-all duration-300;
+  }
+  .nav-link-active {
+    @apply bg-rs-dark text-white shadow-md;
+  }
+  .nav-link-inactive {
+    @apply text-stone-500 hover:text-rs-dark hover:bg-stone-100;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-stone-200 rounded-full hover:bg-stone-300 transition-colors;
 }
