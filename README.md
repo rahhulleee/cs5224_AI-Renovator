@@ -28,11 +28,11 @@ uv sync
 cp .env.example .env
 ```
 
-Fill in `.env` — minimum required to run without a database:
+Fill in `.env` with the local settings you need:
 
 ```
 GEMINI_API_KEY=your-gemini-api-key-here
-DATABASE_URL=postgresql://roomstyle_admin:PASSWORD@<RDS_ENDPOINT>:5432/roomstyle
+DATABASE_URL=postgresql://<DB_USER>:<DB_PASSWORD>@<RDS_ENDPOINT>:5432/<DB_NAME>?sslmode=require
 JWT_SECRET=any-random-string-for-local-dev
 AWS_REGION=ap-southeast-1
 S3_BUCKET=roomstyle-cs5224
@@ -43,8 +43,10 @@ S3_BUCKET=roomstyle-cs5224
 ### 3. Apply the database schema (first time only)
 
 ```bash
-psql -h <RDS_ENDPOINT> -U roomstyle_admin -d roomstyle -f schema.sql
+uv run python sync_schema.py
 ```
+
+If you prefer `psql`, use your own RDS username, password, and database name rather than hardcoded sample credentials.
 
 ### 4. Run the backend
 
@@ -133,7 +135,8 @@ Then open `http://localhost:5173`.
 | `POST` | `/auth/register` | Create account |
 | `POST` | `/auth/login` | Sign in, returns JWT |
 | `POST` | `/projects` | Create project (auth required) |
-| `POST` | `/generate/room` | Start generation job (auth required) |
+| `POST` | `/generate/room` | Start generation job with selected furniture (auth required) |
+| `POST` | `/generate/design-for-me` | Start auto-furnished generation job (auth required) |
 | `GET` | `/generations/{id}` | Poll generation status |
 | `GET` | `/health` | Health check |
 
@@ -160,7 +163,7 @@ This document summarizes the initial cloud environment established for the RoomS
 | Field              | Value                                            |
 | ------------------ | ------------------------------------------------ |
 | Login URL          | https://cs5224-nus.signin.aws.amazon.com/console |
-| Temporary Password | `RoomStyle2026!`                                 |
+| Temporary Password | Set individually and distribute through a secure channel |
 
 > **Note:** All team members must ensure they are operating within the **Singapore (`ap-southeast-1`)** region to maintain consistency with the provisioned resources.
 
@@ -187,12 +190,12 @@ The system uses a decoupled storage layer for managing room imagery.
 
 A relational database handles structured application data including users, projects, and design results.
 
-| Field              | Value             |
-| ------------------ | ----------------- |
-| Database Name      | `roomstyle_db`    |
-| Master Username    | `postgres_admin`  |
-| Master Password    | `RoomStyle2026!`  |
-| VPC Security Group | `roomstyle-db-sg` |
+| Field              | Value |
+| ------------------ | ----- |
+| Database Name      | Provisioned in RDS for the project environment |
+| Master Username    | Stored privately by the team |
+| Master Password    | Stored privately by the team |
+| VPC Security Group | Project RDS security group |
 
 **Implementation:** Provisioned as a PostgreSQL instance to support the Fiscal Architect and Global Product Catalogue features.
 
@@ -244,3 +247,7 @@ The current setup is optimised for rapid prototyping and cost-efficiency. The fo
 
 RDS Proxy (important since we're using Lambda):
 Lambda functions can spin up many concurrent connections and exhaust your database's connection limit. Go to RDS → Proxies → Create proxy, point it at your RDS instance, and configure it to pull credentials from Secrets Manager. Your Lambda functions then connect to the proxy endpoint instead of the database directly.
+
+## Security note
+
+Do not commit live AWS passwords, database passwords, API keys, or temporary console credentials into this repository. Keep them in `.env`, AWS Secrets Manager, or another team-approved secret store.
