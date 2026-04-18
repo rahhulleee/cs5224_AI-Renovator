@@ -147,8 +147,9 @@ async def refine_generation(
         gen_service.run_generation_pipeline,
         str(result.generation_id),
         new_gen.style_name if new_gen else "Modern",
-        [],  # auto-search IKEA with the refined style
+        [],
         new_gen.prompt_text if new_gen else None,
+        True,  # is_refinement — skip furniture search, use targeted edit prompt
     )
     return result
 

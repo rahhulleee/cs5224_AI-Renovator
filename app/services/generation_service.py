@@ -204,7 +204,8 @@ class GenerationService:
         design_id: str,
         style_name: str,
         furniture_items: list[dict],
-        prompt_text: Optional[str]
+        prompt_text: Optional[str],
+        is_refinement: bool = False,
     ) -> None:
         """Run the complete generation pipeline in background.
 
@@ -225,7 +226,7 @@ class GenerationService:
         """
         import asyncio
         import httpx
-        from app.services.gemini_generation import generate_room_image
+        from app.services.gemini_generation import generate_room_image, refine_room_image
 
         db = SessionLocal()
         try:
@@ -233,6 +234,33 @@ class GenerationService:
             product_store = ProductStore(db)
             gen_product_store = GenerationProductStore(db)
             photo_store = PhotoStore(db)
+
+            # Refinement path: skip furniture search/placement, apply targeted edit
+            if is_refinement:
+                gen = generation_store.get_by_id(design_id)
+                if gen and gen.input_photo_id:
+                    photo = photo_store.get_by_id(gen.input_photo_id)
+                    if photo:
+                        output_key = await asyncio.to_thread(
+                            refine_room_image,
+                            photo.s3_key,
+                            design_id,
+                            style_name,
+                            prompt_text,
+                        )
+                        gen_photo = Photo(
+                            project_id=gen.project_id,
+                            photo_type="generated",
+                            s3_key=output_key,
+                            file_name="output.jpg",
+                            mime_type="image/jpeg",
+                        )
+                        photo_store.add(gen_photo)
+                        generation_store.update_generated_photo(design_id, gen_photo.photo_id)
+                if gen:
+                    generation_store.update_status(design_id, GenerationStatus.completed)
+                db.commit()
+                return
 
             # Step 1: Auto-search IKEA if no furniture
             if not furniture_items:

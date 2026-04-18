@@ -44,7 +44,7 @@ class _RefinedParams(BaseModel):
 def _interpret_node(state: _RefineState) -> dict:
     """Call Gemini to interpret the user's instruction into structured params."""
     llm = ChatGoogleGenerativeAI(
-        model="gemini-2.0-flash-lite",
+        model="gemini-3.1-pro-preview",
         google_api_key=os.environ.get("GEMINI_API_KEY"),
         temperature=0.3,
     )
@@ -133,7 +133,7 @@ class RefineService:
         # New generation — same project + room photo, updated style/prompt
         new_gen = DesignGeneration(
             project_id=original.project_id,
-            input_photo_id=original.input_photo_id,
+            input_photo_id=original.generated_photo_id or original.input_photo_id,
             style_name=result["refined_style"],
             prompt_text=result["refined_prompt"],
             status=GenerationStatus.pending,
