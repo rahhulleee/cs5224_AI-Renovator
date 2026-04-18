@@ -1,11 +1,20 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
-import { indexFromUrl, searchProducts, createProject, presignUpload, uploadFileToS3, generateRoom, designForMe, pollGeneration, refineGeneration } from '../api'
+import { indexFromUrl, searchProducts, createProject, presignUpload, uploadFileToS3, generateRoom, designForMe, pollGeneration, refineGeneration, applyLighting } from '../api'
 import { Product, GenerationDone } from '../types'
 
 type ChatMessage = { text: string; status: 'refining' | 'done' | 'failed' }
 
 const STYLES = ['Modern', 'Scandinavian', 'Cozy Warm', 'Futuristic', 'Nature', 'Industrial']
+
+type LightingMode = { key: string; label: string; icon: string }
+const LIGHTING_MODES: LightingMode[] = [
+  { key: 'day',       label: 'Day',           icon: '☀️' },
+  { key: 'afternoon', label: 'Afternoon',     icon: '🌅' },
+  { key: 'night',     label: 'Night',         icon: '🌙' },
+  { key: 'cove',      label: 'Cove',          icon: '💡' },
+  { key: 'spot',      label: 'Spot',          icon: '🔦' },
+]
 const STYLE_COLORS: Record<string, string> = {
   Modern: 'bg-stone-100',
   Scandinavian: 'bg-sky-50',
@@ -65,12 +74,24 @@ export default function Home() {
   const [refineElapsed, setRefineElapsed] = useState(0)
   const chatEndRef = useRef<HTMLDivElement>(null)
 
+  // ── Atmospheric lighting ───────────────────────────────────────────────────
+  const [lightingLoading, setLightingLoading] = useState(false)
+  const [activeLighting, setActiveLighting] = useState<string | null>(null)
+  const [lightingElapsed, setLightingElapsed] = useState(0)
+
   // Elapsed timer while a refinement is in-flight
   useEffect(() => {
     if (!chatLoading) { setRefineElapsed(0); return }
     const t = setInterval(() => setRefineElapsed((s) => s + 1), 1000)
     return () => clearInterval(t)
   }, [chatLoading])
+
+  // Elapsed timer while lighting is being applied
+  useEffect(() => {
+    if (!lightingLoading) { setLightingElapsed(0); return }
+    const t = setInterval(() => setLightingElapsed((s) => s + 1), 1000)
+    return () => clearInterval(t)
+  }, [lightingLoading])
 
   // ── Furniture via URL ──────────────────────────────────────────────────────
   async function handleAddUrl(e: React.FormEvent) {
@@ -239,6 +260,38 @@ export default function Home() {
       alert(msg)
     } finally {
       setGenerating(false)
+    }
+  }
+
+  // ── Atmospheric lighting ──────────────────────────────────────────────────
+  async function handleLighting(lightingKey: string) {
+    const activeGen = historyView ?? genResult
+    if (!token || !activeGen || lightingLoading || chatLoading) return
+
+    setLightingLoading(true)
+    setActiveLighting(lightingKey)
+
+    try {
+      const pending = await applyLighting(token, activeGen.generation_id, lightingKey)
+
+      let attempts = 0
+      while (attempts < 30) {
+        await new Promise((r) => setTimeout(r, 2000))
+        const result = await pollGeneration(token, pending.generation_id)
+        if (result.status === 'done') {
+          setGenHistory((prev) => [...prev, activeGen])
+          setGenResult(result)
+          setHistoryView(null)
+          setIsRefinementResult(true)
+          break
+        }
+        attempts++
+      }
+    } catch (err: unknown) {
+      alert('Lighting failed: ' + (err instanceof Error ? err.message : 'unknown error'))
+    } finally {
+      setLightingLoading(false)
+      setActiveLighting(null)
     }
   }
 
@@ -528,14 +581,14 @@ export default function Home() {
                   <img
                     src={displayed.image_url}
                     alt="Generated room"
-                    className={`w-full rounded-xl border border-rs-border object-cover bg-stone-100 transition-opacity ${chatLoading ? 'opacity-60' : 'opacity-100'}`}
+                    className={`w-full rounded-xl border border-rs-border object-cover bg-stone-100 transition-opacity ${chatLoading || lightingLoading ? 'opacity-60' : 'opacity-100'}`}
                   />
                   {isViewingHistory && (
                     <div className="absolute top-2 left-2 bg-black/50 text-white text-xs px-2 py-1 rounded-lg backdrop-blur-sm">
                       Viewing past version
                     </div>
                   )}
-                  {chatLoading && (
+                  {(chatLoading || lightingLoading) && (
                     <div className="absolute inset-0 rounded-xl flex flex-col items-center justify-center gap-2 bg-white/30 backdrop-blur-[2px]">
                       <div className="flex gap-2">
                         <span className="w-2.5 h-2.5 bg-rs-amber rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
@@ -543,7 +596,9 @@ export default function Home() {
                         <span className="w-2.5 h-2.5 bg-rs-amber rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                       </div>
                       <p className="text-xs font-medium text-stone-600">
-                        Refining{refineElapsed > 0 ? ` (${refineElapsed}s)` : '…'}
+                        {lightingLoading
+                          ? `Applying ${LIGHTING_MODES.find(m => m.key === activeLighting)?.label} lighting${lightingElapsed > 0 ? ` (${lightingElapsed}s)` : '…'}`
+                          : `Refining${refineElapsed > 0 ? ` (${refineElapsed}s)` : '…'}`}
                       </p>
                     </div>
                   )}
@@ -617,6 +672,36 @@ export default function Home() {
                   Refined design — view original for furniture list
                 </p>
               )}
+
+              {/* ── Atmospheric Lighting ─────────────────────────────────── */}
+              <div className="border-t border-rs-border pt-3 flex flex-col gap-2">
+                <p className="text-xs font-medium text-stone-500">Atmospheric Lighting</p>
+                <div className="flex gap-1.5 flex-wrap">
+                  {LIGHTING_MODES.map((mode) => {
+                    const isActive = activeLighting === mode.key
+                    return (
+                      <button
+                        key={mode.key}
+                        onClick={() => handleLighting(mode.key)}
+                        disabled={lightingLoading || chatLoading}
+                        className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium border transition-all ${
+                          isActive
+                            ? 'bg-rs-amber text-white border-rs-amber'
+                            : 'bg-cream/60 text-stone-600 border-rs-border hover:border-rs-amber/60 hover:bg-cream'
+                        } disabled:opacity-50 disabled:cursor-not-allowed`}
+                      >
+                        <span>{mode.icon}</span>
+                        <span>{isActive && lightingLoading ? `${lightingElapsed}s…` : mode.label}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+                {lightingLoading && (
+                  <p className="text-xs text-stone-400 text-center">
+                    Applying {LIGHTING_MODES.find(m => m.key === activeLighting)?.label} lighting…
+                  </p>
+                )}
+              </div>
 
               {/* ── Chat refinement ─────────────────────────────────────── */}
               <div className="border-t border-rs-border pt-3 flex flex-col gap-2">

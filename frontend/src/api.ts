@@ -137,6 +137,12 @@ export const refineGeneration = (token: string, generation_id: string, message: 
     body: JSON.stringify({ generation_id, message }),
   }, token)
 
+export const applyLighting = (token: string, generation_id: string, lighting_type: string) =>
+  request<import('./types').GenerationPending>('/generate/lighting', {
+    method: 'POST',
+    body: JSON.stringify({ generation_id, lighting_type }),
+  }, token)
+
 // ── Cart ──────────────────────────────────────────────────────────────────────
 
 export const getCart = (token: string, projectId: string) =>

@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 _BUCKET = os.environ.get("S3_BUCKET", "roomstyle-cs5224")
 _REGION = os.environ.get("AWS_REGION", "ap-southeast-1")
-_MODEL = "gemini-3-pro-image-preview"
+_MODEL = "gemini-2.5-flash-image"
 _MAX_FURNITURE = 6   # cap to stay within Gemini's per-request image limits
 
 
@@ -166,6 +166,137 @@ def generate_room_image(
 
     logger.info(
         "gemini_upload design_id=%s s3_key=%s bytes=%d",
+        design_id, output_key, len(image_bytes),
+    )
+    return output_key
+
+
+_LIGHTING_PROMPTS: dict[str, str] = {
+    "day": (
+        "Transform the lighting to natural daytime. Simulate bright, even natural daylight streaming in through "
+        "the windows. The room should look like midday — balanced white light, clear visibility, soft natural "
+        "shadows, all artificial lights off. The outside view through windows should look bright."
+    ),
+    "afternoon": (
+        "Transform the lighting to warm golden-hour afternoon. Simulate late-afternoon sunlight streaming through "
+        "windows at a low angle, casting long soft diagonal shadows across the floor and furniture. The room "
+        "should have warm amber and golden tones, a cozy glowing atmosphere."
+    ),
+    "night": (
+        "Transform the lighting to nighttime. Make the view through any windows completely dark — it is night "
+        "outside. Switch on all interior artificial lights: warm incandescent ceiling lights, floor lamps, table "
+        "lamps. The room should feel intimate and warmly lit from within with no natural daylight."
+    ),
+    "cove": (
+        "Transform the lighting to dramatic indirect cove lighting. Add soft LED light hidden in ceiling coves or "
+        "troughs along the perimeter, creating a gentle upward wash of light across the ceiling and walls. "
+        "No direct fixtures are visible — only a sophisticated diffused ambient glow. The mood is elegant and calm."
+    ),
+    "spot": (
+        "Transform the lighting to recessed ceiling spotlights and downlights. Add focused pools of light cast "
+        "downward from ceiling spots onto furniture pieces and the floor. Create high contrast between the brightly "
+        "lit areas and the softer shadow zones between them. The room looks architectural and gallery-like."
+    ),
+}
+
+LIGHTING_MODES = list(_LIGHTING_PROMPTS.keys())
+
+
+def apply_lighting_image(
+    photo_s3_key: str,
+    design_id: str,
+    lighting_type: str,
+) -> str:
+    """Apply an atmospheric lighting transformation to an existing room image.
+
+    Parameters
+    ----------
+    photo_s3_key:   S3 key of the room image to transform.
+    design_id:      UUID string of the new DesignGeneration record.
+    lighting_type:  One of the keys in _LIGHTING_PROMPTS
+                    ('day', 'afternoon', 'night', 'cove', 'spot').
+
+    Returns
+    -------
+    The S3 key of the transformed output image.
+    """
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        raise ValueError("GEMINI_API_KEY environment variable is not set")
+
+    lighting_type = lighting_type.lower()
+    if lighting_type not in _LIGHTING_PROMPTS:
+        raise ValueError(
+            f"Unknown lighting type '{lighting_type}'. Must be one of {LIGHTING_MODES}"
+        )
+
+    s3 = _s3()
+    obj = s3.get_object(Bucket=_BUCKET, Key=photo_s3_key)
+    room_bytes: bytes = obj["Body"].read()
+    room_mime: str = obj.get("ContentType") or "image/jpeg"
+
+    logger.info(
+        "gemini_lighting design_id=%s model=%s lighting=%s",
+        design_id, _MODEL, lighting_type,
+    )
+
+    parts: list[types.Part] = [
+        types.Part(inline_data=types.Blob(data=room_bytes, mime_type=room_mime)),
+        types.Part(text=(
+            f"This is the current room design. Apply ONLY the following lighting transformation:\n\n"
+            f"{_LIGHTING_PROMPTS[lighting_type]}\n\n"
+            f"STRICT RULES — follow every one exactly:\n"
+            f"- Do NOT move, add, or remove any furniture, decorations, rugs, plants, or objects.\n"
+            f"- Do NOT change walls, floor material, ceiling structure, windows, or doors.\n"
+            f"- Do NOT change the camera angle, perspective, or crop.\n"
+            f"- ONLY change the lighting — colours, shadows, brightness, and light sources.\n"
+            f"- Every piece of furniture must remain in exactly the same position as the original.\n\n"
+            f"Output the room image with ONLY the lighting changed."
+        )),
+    ]
+
+    try:
+        client = genai.Client(api_key=api_key)
+        response = client.models.generate_content(
+            model=_MODEL,
+            contents=[types.Content(role="user", parts=parts)],
+            config=types.GenerateContentConfig(
+                response_modalities=["IMAGE", "TEXT"],
+            ),
+        )
+    except Exception as e:
+        logger.error("Gemini lighting API call failed: %s", str(e))
+        raise RuntimeError(f"Gemini API call failed: {str(e)}") from e
+
+    image_bytes: bytes | None = None
+    for candidate in response.candidates or []:
+        for part in candidate.content.parts or []:
+            if part.inline_data and part.inline_data.data:
+                image_bytes = part.inline_data.data
+                break
+        if image_bytes:
+            break
+
+    if not image_bytes:
+        finish = (
+            response.candidates[0].finish_reason
+            if response.candidates else "unknown"
+        )
+        raise RuntimeError(
+            f"Gemini returned no image for lighting design_id={design_id}. "
+            f"finish_reason={finish}"
+        )
+
+    output_key = f"generations/{design_id}/output.jpg"
+    s3.put_object(
+        Bucket=_BUCKET,
+        Key=output_key,
+        Body=image_bytes,
+        ContentType="image/jpeg",
+    )
+
+    logger.info(
+        "gemini_lighting_upload design_id=%s s3_key=%s bytes=%d",
         design_id, output_key, len(image_bytes),
     )
     return output_key
