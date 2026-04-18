@@ -42,6 +42,8 @@ export default function Home() {
   const [browseQuery, setBrowseQuery] = useState('')
   const [browseLoading, setBrowseLoading] = useState(false)
   const [budgetLimit, setBudgetLimit] = useState<string>('')
+  const [designBrief, setDesignBrief] = useState('')
+  const [hasSubmittedDesignBrief, setHasSubmittedDesignBrief] = useState(false)
 
   // ── Room upload ────────────────────────────────────────────────────────────
   const [roomFile, setRoomFile] = useState<File | null>(null)
@@ -167,6 +169,9 @@ export default function Home() {
     setChatMessages([])
     setUrlError('')
     setGenStatus('Creating project…')
+    if (!isManualMode) {
+      setHasSubmittedDesignBrief(true)
+    }
 
     try {
       // 1. Create project
@@ -187,9 +192,12 @@ export default function Home() {
       }
 
       // 3. Kick off generation
+      const trimmedDesignBrief = designBrief.trim()
       const promptText = isManualMode
         ? `Place only the selected furniture into the room in a ${selectedStyle.toLowerCase()} style.`
-        : `Create a ${selectedStyle.toLowerCase()} living room concept for this space.`
+        : trimmedDesignBrief
+          ? `Create a ${selectedStyle.toLowerCase()} living room concept for this space. Design brief: ${trimmedDesignBrief}`
+          : `Create a ${selectedStyle.toLowerCase()} living room concept for this space.`
 
       setGenStatus(
         isManualMode
@@ -239,6 +247,9 @@ export default function Home() {
         throw new Error('Generation timed out. Please try again.')
       }
     } catch (err: unknown) {
+      if (!isManualMode) {
+        setHasSubmittedDesignBrief(false)
+      }
       const msg = 'Generation failed: ' + (err instanceof Error ? err.message : 'unknown error')
       setGenStatus(msg)
       alert(msg)
@@ -485,18 +496,30 @@ export default function Home() {
               )}
             </>
           ) : (
-            <div className="rounded-2xl border border-rs-border bg-cream/40 p-4 text-sm text-stone-600">
-              <p className="font-medium text-rs-dark">RoomStyle will choose the furniture for you.</p>
-              <p className="mt-2 text-xs leading-5 text-stone-500">
-                Upload a room photo, choose a style, set a budget if you want, and we will generate a concept using automatically selected furniture.
-              </p>
-              {selectedItems.length > 0 && (
-                <p className="mt-3 text-xs leading-5 text-stone-500">
-                  You still have {selectedItems.length} saved item{selectedItems.length === 1 ? '' : 's'} from manual mode.
-                  Switch back to <span className="font-medium text-rs-dark">Use My Items</span> to use them.
-                </p>
+            <>
+              {!hasSubmittedDesignBrief && (
+                <div className="rounded-2xl border border-rs-border bg-white p-4">
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="design-brief" className="text-xs font-medium text-stone-600">
+                      Initial Design Brief
+                    </label>
+                    <textarea
+                      id="design-brief"
+                      className="input min-h-[104px] resize-none py-3 text-sm leading-5"
+                      placeholder="Describe what you want for the first concept, like cozy Scandinavian with more natural wood, soft lighting, and minimal clutter."
+                      value={designBrief}
+                      onChange={(e) => setDesignBrief(e.target.value)}
+                    />
+                    {selectedItems.length > 0 && (
+                      <p className="text-xs leading-5 text-stone-400">
+                        You still have {selectedItems.length} saved item{selectedItems.length === 1 ? '' : 's'} from manual mode.
+                        Switch back to <span className="font-medium text-rs-dark">Use My Items</span> to use them.
+                      </p>
+                    )}
+                  </div>
+                </div>
               )}
-            </div>
+            </>
           )}
         </div>
 
