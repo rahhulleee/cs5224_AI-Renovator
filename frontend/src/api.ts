@@ -17,12 +17,14 @@ async function request<T>(path: string, init?: RequestInit, token?: string): Pro
   const res = await fetch(`${BASE}${path}`, { ...init, headers })
   if (!res.ok) {
     const bodyText = await res.text().catch(() => '')
+    let detail = bodyText
     try {
       const parsed = JSON.parse(bodyText) as { detail?: string }
-      throw new Error(parsed.detail || bodyText || `HTTP ${res.status}`)
+      detail = parsed.detail || bodyText
     } catch {
-      throw new Error(bodyText || `HTTP ${res.status}`)
+      // Keep the raw body text when the response isn't JSON.
     }
+    throw new Error(detail || `HTTP ${res.status}`)
   }
   return res.json() as Promise<T>
 }

@@ -11,6 +11,7 @@ import os
 from pathlib import Path
 
 import psycopg2
+from psycopg2 import errors
 from dotenv import load_dotenv
 
 REQUIRED_TABLES = {
@@ -35,6 +36,10 @@ def _existing_tables(conn) -> set[str]:
         return {row[0] for row in cur.fetchall()}
 
 
+def _split_statements(sql: str) -> list[str]:
+    return [statement.strip() for statement in sql.split(";") if statement.strip()]
+
+
 def main() -> int:
     load_dotenv(".env")
 
@@ -48,16 +53,23 @@ def main() -> int:
         print("ERROR: schema.sql not found")
         return 1
 
-    sql = schema_path.read_text()
-
     try:
         with psycopg2.connect(database_url) as conn:
-            existing = _existing_tables(conn)
-            if REQUIRED_TABLES.issubset(existing):
+            if REQUIRED_TABLES.issubset(_existing_tables(conn)):
                 print("Schema already present; nothing to apply.")
                 return 0
+
+            conn.autocommit = True
             with conn.cursor() as cur:
-                cur.execute(sql)
+                for statement in _split_statements(schema_path.read_text()):
+                    try:
+                        cur.execute(statement + ";")
+                    except (
+                        errors.DuplicateObject,
+                        errors.DuplicateTable,
+                        errors.DuplicateRelation,
+                    ):
+                        continue
         print("Schema applied successfully.")
         return 0
     except Exception as exc:
