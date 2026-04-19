@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 _BUCKET = os.environ.get("S3_BUCKET", "roomstyle-cs5224")
 _REGION = os.environ.get("AWS_REGION", "ap-southeast-1")
-_MODEL = "gemini-2.5-flash-image"
+_MODEL = "gemini-3-pro-image-preview"
 _MAX_FURNITURE = 6   # cap to stay within Gemini's per-request image limits
 
 
