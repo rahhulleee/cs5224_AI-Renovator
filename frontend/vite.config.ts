@@ -10,7 +10,7 @@ export default defineConfig({
     // Proxy /api/* → backend (uvicorn locally, API Gateway in prod via VITE_API_URL)
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        target: 'https://hazard-dislodge-trouble.ngrok-free.dev',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
