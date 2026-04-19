@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
+import { Sun, Sunrise, Moon, Lightbulb, Flashlight, Sparkles, Camera, Armchair, Check, X, ArrowRight, Search, Download, Maximize2, Loader, Plus } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { indexFromUrl, searchProducts, createProject, presignUpload, uploadFileToS3, generateRoom, designForMe, pollGeneration, refineGeneration, applyLighting } from '../api'
 import { Product, GenerationDone } from '../types'
@@ -10,11 +11,11 @@ const STYLES = ['Modern', 'Scandinavian', 'Cozy Warm', 'Futuristic', 'Nature', '
 
 type LightingMode = { key: string; label: string; icon: string }
 const LIGHTING_MODES: LightingMode[] = [
-  { key: 'day',       label: 'Day',           icon: '☀️' },
-  { key: 'afternoon', label: 'Afternoon',     icon: '🌅' },
-  { key: 'night',     label: 'Night',         icon: '🌙' },
-  { key: 'cove',      label: 'Cove',          icon: '💡' },
-  { key: 'spot',      label: 'Spot',          icon: '🔦' },
+  { key: 'day', label: 'Day', icon: 'sun' },
+  { key: 'afternoon', label: 'Afternoon', icon: 'sunrise' },
+  { key: 'night', label: 'Night', icon: 'moon' },
+  { key: 'cove', label: 'Cove', icon: 'lightbulb' },
+  { key: 'spot', label: 'Spot', icon: 'flashlight' },
 ]
 const STYLE_COLORS: Record<string, string> = {
   Modern: 'bg-stone-100',
@@ -37,6 +38,59 @@ function TypingDots() {
   )
 }
 
+function getLightingIcon(iconKey: string) {
+  const iconMap: Record<string, React.ReactNode> = {
+    'sun': <Sun size={16} />,
+    'sunrise': <Sunrise size={16} />,
+    'moon': <Moon size={16} />,
+    'lightbulb': <Lightbulb size={16} />,
+    'flashlight': <Flashlight size={16} />,
+  }
+  return iconMap[iconKey] || null
+}
+
+function ImageModal({ image_url, onClose }: { image_url: string; onClose: () => void }) {
+  const downloadImage = async () => {
+    try {
+      const response = await fetch(image_url)
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `roomstyle-design-${Date.now()}.png`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (err) {
+      console.error('Download failed:', err)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full flex flex-col">
+        <div className="flex items-center justify-between p-6 border-b border-rs-border">
+          <h3 className="text-lg font-semibold text-rs-dark">Generated Design</h3>
+          <button onClick={onClose} className="p-2 hover:bg-stone-100 rounded-full transition-colors">
+            <X size={24} className="text-stone-600" />
+          </button>
+        </div>
+        <div className="flex-1 flex items-center justify-center p-6 bg-stone-50 overflow-auto">
+          <img src={image_url} alt="Generated design" className="max-w-full max-h-[70vh] rounded-2xl shadow-lg object-contain" />
+        </div>
+        <div className="flex items-center gap-3 p-6 border-t border-rs-border justify-end">
+          <button onClick={onClose} className="btn-secondary">Close</button>
+          <button onClick={downloadImage} className="btn-primary flex items-center gap-2">
+            <Download size={18} />
+            Download
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Home() {
   const { token } = useAuth()
   const [designMode, setDesignMode] = useState<DesignMode>('manual')
@@ -50,6 +104,8 @@ export default function Home() {
   const [browseResults, setBrowseResults] = useState<Product[]>([])
   const [browseQuery, setBrowseQuery] = useState('')
   const [browseLoading, setBrowseLoading] = useState(false)
+  const [inspirationResults, setInspirationResults] = useState<Product[]>([])
+  const [inspirationLoading, setInspirationLoading] = useState(false)
   const [budgetLimit, setBudgetLimit] = useState<string>('')
   const [designBrief, setDesignBrief] = useState('')
   const [hasSubmittedDesignBrief, setHasSubmittedDesignBrief] = useState(false)
@@ -83,6 +139,9 @@ export default function Home() {
   const [activeLighting, setActiveLighting] = useState<string | null>(null)
   const [lightingElapsed, setLightingElapsed] = useState(0)
 
+  // ── Image modal ─────────────────────────────────────────────────────────────
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null)
+
   // Elapsed timer while a refinement is in-flight
   useEffect(() => {
     if (!chatLoading) { setRefineElapsed(0); return }
@@ -115,11 +174,11 @@ export default function Home() {
   }
 
   // ── Browse products ────────────────────────────────────────────────────────
-  async function handleBrowseSearch(e: React.FormEvent) {
-    e.preventDefault()
+  async function loadBrowseResults(query = browseQuery, fallbackStyle = selectedStyle) {
     setBrowseLoading(true)
     try {
-      const results = await searchProducts({ q: browseQuery || selectedStyle })
+      const trimmedQuery = query.trim()
+      const results = await searchProducts(trimmedQuery ? { q: trimmedQuery } : { q: fallbackStyle })
       setBrowseResults(results)
     } catch {
       setBrowseResults([])
@@ -128,10 +187,27 @@ export default function Home() {
     }
   }
 
+  async function loadInspirationResults(style: string) {
+    setInspirationLoading(true)
+    try {
+      const results = await searchProducts({ style })
+      setInspirationResults(results)
+    } catch {
+      setInspirationResults([])
+    } finally {
+      setInspirationLoading(false)
+    }
+  }
+
+  async function handleBrowseSearch(e: React.FormEvent) {
+    e.preventDefault()
+    await loadBrowseResults()
+  }
+
   function addItem(product: Product) {
     if (selectedItems.length >= 5) return
     if (selectedItems.find((p) => p.product_id === product.product_id)) return
-    
+
     // Check budget
     const newTotal = selectedItemsTotal + product.price
     if (budgetLimit && newTotal > Number(budgetLimit)) {
@@ -158,6 +234,16 @@ export default function Home() {
     const file = e.dataTransfer.files[0]
     if (file) handleFile(file)
   }, [])
+
+  useEffect(() => {
+    void loadInspirationResults('Modern')
+  }, [])
+
+  useEffect(() => {
+    if (leftTab === 'browse' && browseResults.length === 0 && !browseLoading) {
+      void loadBrowseResults('', selectedStyle)
+    }
+  }, [leftTab, browseResults.length, browseLoading, selectedStyle])
 
   // ── Generate ───────────────────────────────────────────────────────────────
   async function handleGenerate() {
@@ -228,27 +314,27 @@ export default function Home() {
 
       const gen = isManualMode
         ? await generateRoom(
-            token,
-            project.project_id,
-            photo_id,
-            selectedItems.map((item) => ({
-              name: item.name,
-              image_url: item.image_url,
-              product_id: item.product_id,
-              price: item.price,
-              source: item.source,
-              buy_url: item.buy_url,
-            })),
-            selectedStyle,
-            promptText,
-          )
+          token,
+          project.project_id,
+          photo_id,
+          selectedItems.map((item) => ({
+            name: item.name,
+            image_url: item.image_url,
+            product_id: item.product_id,
+            price: item.price,
+            source: item.source,
+            buy_url: item.buy_url,
+          })),
+          selectedStyle,
+          promptText,
+        )
         : await designForMe(
-            token,
-            project.project_id,
-            photo_id,
-            selectedStyle,
-            promptText,
-          )
+          token,
+          project.project_id,
+          photo_id,
+          selectedStyle,
+          promptText,
+        )
 
       // 4. Poll until done
       let attempts = 0
@@ -367,23 +453,26 @@ export default function Home() {
   const selectedItemsTotal = selectedItems.reduce((acc, item) => acc + item.price, 0)
 
   return (
-    <main className="max-w-7xl mx-auto px-4 py-6">
+    <main className="mx-auto w-full max-w-[1520px] px-5 py-8 lg:px-8 lg:py-10">
       {/* Hero title */}
-      <div className="text-center mb-6">
-        <h1 className="text-3xl font-bold text-rs-dark mb-1">Visualize Your Dream Living Room</h1>
-        <p className="text-stone-500 text-sm">Upload furniture from affiliates &amp; see how it looks in your space with AI</p>
+      <div className="mb-6 text-center lg:mb-7">
+        <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.42em] text-rs-amber/85">Luxury interior visualisation studio</p>
+        <h1 className="mx-auto max-w-3xl bg-[linear-gradient(135deg,#30251d_0%,#7f6240_48%,#c39c6d_100%)] bg-clip-text text-3xl font-semibold leading-tight text-transparent font-serif">Visualize Your Dream Living Room</h1>
+        <p className="mt-2 text-sm text-stone-500">Upload furniture from affiliates &amp; see how it looks in your space with AI</p>
       </div>
 
       {/* 3-column layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.4fr_1fr] gap-4">
+      <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[1.02fr_1.46fr_1.08fr]">
 
         {/* ── LEFT: Add Furniture ───────────────────────────────────────────── */}
-        <div className="card p-4 flex flex-col gap-4">
-          <h2 className="font-semibold text-sm text-stone-700">
-            1. Choose Design Mode
-          </h2>
+        <div className="card flex flex-col gap-5 p-5 lg:p-6">
+          <div className="space-y-1">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-rs-amber/85">Step 1</p>
+            <h2 className="text-base font-semibold text-rs-dark">Choose Design Mode</h2>
+            <p className="text-xs leading-5 text-stone-500">Select whether you want to place your own furniture or let the platform curate the room concept for you.</p>
+          </div>
 
-          <div className="flex gap-1 bg-cream rounded-xl p-1">
+          <div className="grid grid-cols-2 gap-2 rounded-[24px] border border-rs-border bg-[#F7F3EE]/90 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.78)]">
             {([
               ['manual', 'Use My Items', 'Pick the exact furniture you want placed in the room.'],
               ['design_for_me', 'Design For Me', 'Let RoomStyle choose furniture based on your style and budget.'],
@@ -391,21 +480,22 @@ export default function Home() {
               <button
                 key={mode}
                 onClick={() => setDesignMode(mode)}
-                className={`flex-1 rounded-lg px-3 py-2 text-left transition-colors ${
-                  designMode === mode ? 'bg-white shadow-sm' : 'text-stone-500 hover:text-stone-700'
-                }`}
+                className={`flex-1 rounded-[18px] px-4 py-3 text-left transition-all duration-300 ${designMode === mode
+                  ? 'bg-white text-rs-dark shadow-[0_16px_32px_-24px_rgba(74,63,53,0.75)] ring-1 ring-rs-border/80'
+                  : 'text-stone-500 hover:bg-white/70 hover:text-rs-dark'
+                  }`}
               >
-                <p className="text-xs font-semibold text-rs-dark">{label}</p>
+                <p className="text-[12px] font-semibold text-rs-dark">{label}</p>
                 <p className="mt-1 text-[11px] leading-4 text-stone-500">{description}</p>
               </button>
             ))}
           </div>
 
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-stone-500 font-medium">Total Budget (S$)</label>
-            <input 
+          <div className="rounded-[26px] border border-rs-border/80 bg-[#FCFAF7] p-4">
+            <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-400">Total Budget (S$)</label>
+            <input
               type="number"
-              className="input text-sm"
+              className="input"
               placeholder="e.g. 1000"
               value={budgetLimit}
               onChange={(e) => setBudgetLimit(e.target.value)}
@@ -415,14 +505,20 @@ export default function Home() {
           {isManualMode ? (
             <>
               {/* Tab switcher */}
-              <div className="flex gap-1 bg-cream rounded-xl p-1">
+              <div className="grid grid-cols-2 gap-2 rounded-[22px] border border-rs-border bg-[#F7F3EE]/90 p-1.5">
                 {([['url', 'Product Link'], ['browse', 'Browse Catalogue']] as const).map(([tab, label]) => (
                   <button
                     key={tab}
-                    onClick={() => setLeftTab(tab)}
-                    className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                      leftTab === tab ? 'bg-white text-rs-dark shadow-sm' : 'text-stone-500 hover:text-stone-700'
-                    }`}
+                    onClick={() => {
+                      setLeftTab(tab)
+                      if (tab === 'browse' && browseResults.length === 0 && !browseLoading) {
+                        void loadBrowseResults('', selectedStyle)
+                      }
+                    }}
+                    className={`rounded-[16px] px-3 py-2 text-xs font-medium transition-all duration-300 ${leftTab === tab
+                      ? 'bg-white text-rs-dark shadow-[0_12px_24px_-22px_rgba(74,63,53,0.78)]'
+                      : 'text-stone-500 hover:bg-white/70 hover:text-rs-dark'
+                      }`}
                   >
                     {label}
                   </button>
@@ -430,10 +526,10 @@ export default function Home() {
               </div>
 
               {leftTab === 'url' ? (
-                <form onSubmit={handleAddUrl} className="flex flex-col gap-2">
+                <form onSubmit={handleAddUrl} className="flex flex-col gap-2 rounded-[26px] border border-rs-border/80 bg-[#FCFAF7] p-4">
                   <div className="flex gap-2">
                     <input
-                      className="input flex-1 text-sm"
+                      className="input flex-1"
                       placeholder="Paste furniture link here…"
                       value={urlInput}
                       onChange={(e) => setUrlInput(e.target.value)}
@@ -451,60 +547,75 @@ export default function Home() {
                   <p className="text-xs text-stone-400">Supports IKEA, Taobao, or any product page</p>
                 </form>
               ) : (
-                <form onSubmit={handleBrowseSearch} className="flex gap-2">
+                <form onSubmit={handleBrowseSearch} className="flex items-center gap-2 rounded-[26px] border border-rs-border/80 bg-[#FCFAF7] p-3">
                   <input
-                    className="input flex-1 text-sm"
+                    className="input flex-1 border-0 bg-transparent px-2 py-2 text-[13px] shadow-none focus:ring-0"
                     placeholder={`Search (default: ${selectedStyle})`}
                     value={browseQuery}
                     onChange={(e) => setBrowseQuery(e.target.value)}
                   />
-                  <button type="submit" disabled={browseLoading} className="btn-primary text-sm px-3">
-                    {browseLoading ? '…' : '🔍'}
+                  <button type="submit" disabled={browseLoading} className="btn-primary h-11 w-11 shrink-0 px-0">
+                    {browseLoading ? <Loader size={16} className="animate-spin" /> : <Search size={16} />}
                   </button>
                 </form>
               )}
 
               {/* Browse results */}
-              {leftTab === 'browse' && browseResults.length > 0 && (
-                <div className="flex flex-col gap-2 max-h-56 overflow-y-auto">
-                  {browseResults.slice(0, 10).map((p) => (
-                    <div key={p.product_id} className="flex items-center gap-2 p-2 rounded-xl border border-rs-border bg-cream/40">
-                      {p.image_url
-                        ? <img src={p.image_url} className="w-10 h-10 rounded-lg object-cover bg-stone-100 shrink-0" alt="" />
-                        : <div className="w-10 h-10 rounded-lg bg-cream flex items-center justify-center text-lg shrink-0">🛋️</div>}
-                      <div className="flex-1 min-w-0">
-                        {p.buy_url ? (
-                          <a href={p.buy_url} target="_blank" rel="noopener noreferrer" className="text-xs font-medium truncate hover:underline hover:text-rs-amber block">
-                            {p.name}
-                          </a>
-                        ) : (
-                          <p className="text-xs font-medium truncate">{p.name}</p>
-                        )}
-                        <p className="text-xs text-rs-amber">S${p.price.toFixed(2)}</p>
-                      </div>
-                      <button
-                        onClick={() => addItem(p)}
-                        disabled={isSelected(p.product_id) || selectedItems.length >= 5}
-                        className="btn-primary text-xs py-1 px-2 shrink-0"
-                      >
-                        {isSelected(p.product_id) ? '✓' : '+'}
-                      </button>
+              {leftTab === 'browse' && (
+                <div className="rounded-[26px] border border-rs-border/80 bg-[#FCFAF7] p-3">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-400">Catalogue Picks</p>
+                    <p className="text-[11px] text-stone-400">Default search: {selectedStyle}</p>
+                  </div>
+                  {browseLoading ? (
+                    <div className="flex items-center justify-center py-8 text-stone-400">
+                      <Loader size={16} className="mr-2 animate-spin" /> Loading…
                     </div>
-                  ))}
+                  ) : browseResults.length > 0 ? (
+                    <div className="flex max-h-72 flex-col gap-2 overflow-y-auto">
+                      {browseResults.slice(0, 10).map((p) => (
+                        <div key={p.product_id} className="flex items-center gap-3 rounded-2xl border border-rs-border/70 bg-white/90 p-3">
+                          {p.image_url
+                            ? <img src={p.image_url} className="h-12 w-12 shrink-0 rounded-xl object-cover bg-stone-100" alt="" />
+                            : <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-cream"><Armchair size={20} className="text-stone-300" /></div>}
+                          <div className="min-w-0 flex-1">
+                            {p.buy_url ? (
+                              <a href={p.buy_url} target="_blank" rel="noopener noreferrer" className="block truncate text-xs font-medium text-stone-700 hover:text-rs-amber hover:underline">
+                                {p.name}
+                              </a>
+                            ) : (
+                              <p className="truncate text-xs font-medium text-stone-700">{p.name}</p>
+                            )}
+                            <p className="mt-1 text-xs text-rs-amber">S${p.price.toFixed(2)}</p>
+                          </div>
+                          <button
+                            onClick={() => addItem(p)}
+                            disabled={isSelected(p.product_id) || selectedItems.length >= 5}
+                            className="btn-primary shrink-0 px-3 py-2 text-xs"
+                          >
+                            {isSelected(p.product_id) ? <Check size={14} /> : <Plus size={14} />}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center py-8 text-stone-400">
+                      <p className="text-xs italic">No catalogue items found. Try another search.</p>
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* Selected items */}
-              <div>
-                <div className="flex justify-between items-end mb-2">
+              <div className="rounded-[26px] border border-rs-border/80 bg-[#FCFAF7] p-4">
+                <div className="mb-2 flex items-end justify-between">
                   <p className="text-xs text-stone-500">
                     Selected Items ({selectedItems.length}/5)
                   </p>
-                  <p className={`text-xs font-medium ${
-                    budgetLimit && selectedItemsTotal > Number(budgetLimit)
+                  <p className={`text-xs font-medium ${budgetLimit && selectedItemsTotal > Number(budgetLimit)
                       ? 'text-red-500'
                       : 'text-stone-500'
-                  }`}>
+                    }`}>
                     Total: S${selectedItemsTotal.toFixed(2)}
                     {budgetLimit ? ` / S$${budgetLimit}` : ''}
                   </p>
@@ -518,7 +629,7 @@ export default function Home() {
                         <div className="w-16 h-16 rounded-xl overflow-hidden border border-rs-border bg-cream">
                           {item.image_url
                             ? <img src={item.image_url} className="w-full h-full object-cover" alt={item.name} />
-                            : <div className="w-full h-full flex items-center justify-center text-2xl">🛋️</div>}
+                            : <div className="w-full h-full flex items-center justify-center"><Armchair size={32} className="text-stone-300" /></div>}
                         </div>
                         <button
                           onClick={() => removeItem(item.product_id)}
@@ -541,8 +652,13 @@ export default function Home() {
 
               {selectedItems.length < 5 && (
                 <button
-                  onClick={() => setLeftTab('browse')}
-                  className="btn-secondary text-xs w-full"
+                  onClick={() => {
+                    setLeftTab('browse')
+                    if (browseResults.length === 0 && !browseLoading) {
+                      void loadBrowseResults('', selectedStyle)
+                    }
+                  }}
+                  className="btn-secondary w-full text-xs"
                 >
                   + Add More Items
                 </button>
@@ -577,14 +693,17 @@ export default function Home() {
         </div>
 
         {/* ── CENTER: Upload Room + Generate ───────────────────────────────── */}
-        <div className="card p-4 flex flex-col gap-4">
-          <h2 className="font-semibold text-sm text-stone-700">2. Upload Your Living Room</h2>
+        <div className="card flex flex-col gap-5 p-5 lg:p-6">
+          <div className="space-y-1">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-rs-amber/85">Step 2</p>
+            <h2 className="text-base font-semibold text-rs-dark">Upload Your Living Room</h2>
+            <p className="text-xs leading-5 text-stone-500">Keep your room photo front and center, then generate a polished concept without changing any backend behavior.</p>
+          </div>
 
           {/* Drop zone */}
           <div
-            className={`relative rounded-2xl border-2 border-dashed transition-colors cursor-pointer flex flex-col items-center justify-center min-h-[180px] ${
-              dragOver ? 'border-rs-amber bg-amber-50' : 'border-rs-border hover:border-rs-light bg-cream/40'
-            }`}
+            className={`relative flex min-h-[240px] cursor-pointer flex-col items-center justify-center rounded-[30px] border-2 border-dashed transition-colors ${dragOver ? 'border-rs-amber bg-amber-50/70' : 'border-rs-border bg-[linear-gradient(180deg,rgba(253,252,251,0.98),rgba(247,243,238,0.94))] hover:border-rs-light'
+              }`}
             onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
             onDragLeave={() => setDragOver(false)}
             onDrop={onDrop}
@@ -592,7 +711,7 @@ export default function Home() {
           >
             {roomPreview ? (
               <>
-                <img src={roomPreview} alt="Room" className="w-full h-48 object-cover rounded-xl" />
+                <img src={roomPreview} alt="Room" className="h-64 w-full rounded-[24px] object-cover shadow-[0_20px_50px_-30px_rgba(74,63,53,0.45)]" />
                 <div className="absolute bottom-2 right-2">
                   <button
                     onClick={(e) => { e.stopPropagation(); setRoomFile(null); setRoomPreview(null) }}
@@ -603,11 +722,11 @@ export default function Home() {
                 </div>
               </>
             ) : (
-              <div className="text-center p-6">
-                <div className="text-4xl mb-2">📷</div>
-                <p className="text-sm font-medium text-stone-600">Upload Room Photo</p>
-                <p className="text-xs text-stone-400 mt-1">or drag &amp; drop an image here</p>
-                <p className="text-xs text-stone-300 mt-1">JPG, PNG (Max 10MB)</p>
+              <div className="p-8 text-center flex flex-col items-center">
+                <Camera size={48} className="mb-3 text-stone-300" />
+                <p className="text-sm font-medium text-stone-700">Upload Room Photo</p>
+                <p className="mt-1 text-xs text-stone-400">or drag &amp; drop an image here</p>
+                <p className="mt-1 text-xs text-stone-300">JPG, PNG (Max 10MB)</p>
               </div>
             )}
             <input
@@ -625,9 +744,9 @@ export default function Home() {
             disabled={generating}
             className="btn-primary w-full flex items-center justify-center gap-2 py-3"
           >
-            <span>✨</span>
+            <Sparkles size={18} />
             <span>{generating ? genStatus || 'Generating…' : isManualMode ? 'Generate With My Items' : 'Generate Design For Me'}</span>
-            {!generating && <span>→</span>}
+            {!generating && <ArrowRight size={16} />}
           </button>
           <p className="text-xs text-stone-400 text-center -mt-2">
             {token
@@ -642,272 +761,276 @@ export default function Home() {
             const displayed = historyView ?? genResult
             const isViewingHistory = historyView !== null
             return (
-            <div className="rounded-2xl border border-rs-border bg-cream/40 p-4 flex flex-col gap-3">
+              <div className="rounded-2xl border border-rs-border bg-cream/40 p-4 flex flex-col gap-3">
 
-              {/* Generated image with loading overlay */}
-              {displayed.image_url && (
-                <div className="relative">
-                  <img
-                    src={displayed.image_url}
-                    alt="Generated room"
-                    className={`w-full rounded-xl border border-rs-border object-cover bg-stone-100 transition-opacity ${chatLoading || lightingLoading ? 'opacity-60' : 'opacity-100'}`}
-                  />
-                  {isViewingHistory && (
-                    <div className="absolute top-2 left-2 bg-black/50 text-white text-xs px-2 py-1 rounded-lg backdrop-blur-sm">
-                      Viewing past version
-                    </div>
-                  )}
-                  {(chatLoading || lightingLoading) && (
-                    <div className="absolute inset-0 rounded-xl flex flex-col items-center justify-center gap-2 bg-white/30 backdrop-blur-[2px]">
-                      <div className="flex gap-2">
-                        <span className="w-2.5 h-2.5 bg-rs-amber rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                        <span className="w-2.5 h-2.5 bg-rs-amber rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                        <span className="w-2.5 h-2.5 bg-rs-amber rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                {/* Generated image with loading overlay */}
+                {displayed.image_url && (
+                  <div className="relative group cursor-pointer" onClick={() => displayed.image_url && setSelectedImageUrl(displayed.image_url)}>
+                    <img
+                      src={displayed.image_url}
+                      alt="Generated room"
+                      className={`w-full rounded-xl border border-rs-border object-cover bg-stone-100 transition-opacity ${chatLoading || lightingLoading ? 'opacity-60' : 'opacity-100'}`}
+                    />
+                    <div className="absolute inset-0 rounded-xl bg-black/0 group-hover:bg-black/40 transition-colors duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                      <div className="flex items-center gap-2 bg-white/90 px-4 py-2 rounded-full font-medium text-sm text-rs-dark">
+                        <Maximize2 size={16} />
+                        View Full Size
                       </div>
-                      <p className="text-xs font-medium text-stone-600">
-                        {lightingLoading
-                          ? `Applying ${LIGHTING_MODES.find(m => m.key === activeLighting)?.label} lighting${lightingElapsed > 0 ? ` (${lightingElapsed}s)` : '…'}`
-                          : `Refining${refineElapsed > 0 ? ` (${refineElapsed}s)` : '…'}`}
+                    </div>
+                    {isViewingHistory && (
+                      <div className="absolute top-2 left-2 bg-black/50 text-white text-xs px-2 py-1 rounded-lg backdrop-blur-sm">
+                        Viewing past version
+                      </div>
+                    )}
+                    {(chatLoading || lightingLoading) && (
+                      <div className="absolute inset-0 rounded-xl flex flex-col items-center justify-center gap-2 bg-white/30 backdrop-blur-[2px]">
+                        <div className="flex gap-2">
+                          <span className="w-2.5 h-2.5 bg-rs-amber rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                          <span className="w-2.5 h-2.5 bg-rs-amber rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                          <span className="w-2.5 h-2.5 bg-rs-amber rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                        </div>
+                        <p className="text-xs font-medium text-stone-600">
+                          {lightingLoading
+                            ? `Applying ${LIGHTING_MODES.find(m => m.key === activeLighting)?.label} lighting${lightingElapsed > 0 ? ` (${lightingElapsed}s)` : '…'}`
+                            : `Refining${refineElapsed > 0 ? ` (${refineElapsed}s)` : '…'}`}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Generation history strip */}
+                {genHistory.length > 0 && (
+                  <div className="flex flex-col gap-1.5">
+                    <p className="text-xs text-stone-400 font-medium">Versions</p>
+                    <div className="flex gap-2 overflow-x-auto pb-1">
+                      {genHistory.map((h, i) => {
+                        const isActive = historyView?.generation_id === h.generation_id
+                        return (
+                          <button key={i} onClick={() => setHistoryView(h)} className="shrink-0 relative" title={`Version ${i + 1}`}>
+                            <img
+                              src={h.image_url ?? ''}
+                              alt={`Version ${i + 1}`}
+                              className={`w-16 h-16 rounded-lg object-cover border-2 transition-colors ${isActive ? 'border-rs-amber' : 'border-rs-border hover:border-rs-amber/60'}`}
+                            />
+                            <span className="absolute bottom-1 right-1 text-[9px] bg-black/50 text-white rounded px-1 leading-tight">v{i + 1}</span>
+                          </button>
+                        )
+                      })}
+                      {/* Always-present "Now" thumbnail */}
+                      <button onClick={() => setHistoryView(null)} className="shrink-0 relative" title="Current version">
+                        <img
+                          src={genResult.image_url ?? ''}
+                          alt="Current"
+                          className={`w-16 h-16 rounded-lg object-cover border-2 transition-colors ${!isViewingHistory ? 'border-rs-amber' : 'border-rs-border hover:border-rs-amber/60'}`}
+                        />
+                        <span className="absolute bottom-1 right-1 text-[9px] bg-rs-amber text-white rounded px-1 leading-tight">Now</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Items found — only shown for non-refinement results that have products */}
+                {!isRefinementResult && displayed.products.length > 0 && (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold text-rs-dark">
+                        <Check size={18} className="text-green-600 inline mr-1" />{displayed.products.length} items found
+                      </p>
+                      <p className="text-xs text-stone-500">
+                        Total: S${displayed.total_cost.toFixed(2)}
+                        {displayed.over_budget && <span className="text-red-500 ml-1">· over budget</span>}
                       </p>
                     </div>
-                  )}
-                </div>
-              )}
+                    <div className="flex flex-col gap-1.5 max-h-32 overflow-y-auto">
+                      {displayed.products.map((p) => (
+                        <div key={p.product_id} className="flex items-center justify-between gap-2 text-xs">
+                          {p.buy_url ? (
+                            <a href={p.buy_url} target="_blank" rel="noopener noreferrer" className="truncate flex-1 text-stone-700 hover:underline hover:text-rs-amber">
+                              {p.name}
+                            </a>
+                          ) : (
+                            <span className="truncate flex-1 text-stone-700">{p.name}</span>
+                          )}
+                          <span className="text-rs-amber font-medium shrink-0">S${p.price.toFixed(2)}</span>
+                          <a href={p.buy_url} target="_blank" rel="noopener noreferrer"
+                            className="text-rs-amber underline shrink-0 hover:text-rs-dark">Buy →</a>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
 
-              {/* Generation history strip */}
-              {genHistory.length > 0 && (
-                <div className="flex flex-col gap-1.5">
-                  <p className="text-xs text-stone-400 font-medium">Versions</p>
-                  <div className="flex gap-2 overflow-x-auto pb-1">
-                    {genHistory.map((h, i) => {
-                      const isActive = historyView?.generation_id === h.generation_id
+                {isRefinementResult && (
+                  <p className="text-xs text-stone-400 italic text-center">
+                    Refined design — view original for furniture list
+                  </p>
+                )}
+
+                {/* ── Atmospheric Lighting ─────────────────────────────────── */}
+                <div className="border-t border-rs-border pt-3 flex flex-col gap-2">
+                  <p className="text-xs font-medium text-stone-500">Atmospheric Lighting</p>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {LIGHTING_MODES.map((mode) => {
+                      const isActive = activeLighting === mode.key
                       return (
-                        <button key={i} onClick={() => setHistoryView(h)} className="shrink-0 relative" title={`Version ${i + 1}`}>
-                          <img
-                            src={h.image_url ?? ''}
-                            alt={`Version ${i + 1}`}
-                            className={`w-16 h-16 rounded-lg object-cover border-2 transition-colors ${isActive ? 'border-rs-amber' : 'border-rs-border hover:border-rs-amber/60'}`}
-                          />
-                          <span className="absolute bottom-1 right-1 text-[9px] bg-black/50 text-white rounded px-1 leading-tight">v{i + 1}</span>
+                        <button
+                          key={mode.key}
+                          onClick={() => handleLighting(mode.key)}
+                          disabled={lightingLoading || chatLoading}
+                          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium border transition-all ${isActive
+                              ? 'bg-rs-amber text-white border-rs-amber'
+                              : 'bg-cream/60 text-stone-600 border-rs-border hover:border-rs-amber/60 hover:bg-cream'
+                            } disabled:opacity-50 disabled:cursor-not-allowed`}
+                        >
+                          {getLightingIcon(mode.icon)}
+                          <span>{isActive && lightingLoading ? `${lightingElapsed}s…` : mode.label}</span>
                         </button>
                       )
                     })}
-                    {/* Always-present "Now" thumbnail */}
-                    <button onClick={() => setHistoryView(null)} className="shrink-0 relative" title="Current version">
-                      <img
-                        src={genResult.image_url ?? ''}
-                        alt="Current"
-                        className={`w-16 h-16 rounded-lg object-cover border-2 transition-colors ${!isViewingHistory ? 'border-rs-amber' : 'border-rs-border hover:border-rs-amber/60'}`}
-                      />
-                      <span className="absolute bottom-1 right-1 text-[9px] bg-rs-amber text-white rounded px-1 leading-tight">Now</span>
+                  </div>
+                  {lightingLoading && (
+                    <p className="text-xs text-stone-400 text-center">
+                      Applying {LIGHTING_MODES.find(m => m.key === activeLighting)?.label} lighting…
+                    </p>
+                  )}
+                </div>
+
+                {/* ── Chat refinement ─────────────────────────────────────── */}
+                <div className="border-t border-rs-border pt-3 flex flex-col gap-2">
+                  {/* Message history */}
+                  {chatMessages.length > 0 && (
+                    <div className="flex flex-col gap-2 max-h-36 overflow-y-auto px-0.5">
+                      {chatMessages.map((msg, i) => (
+                        <div key={i} className="flex flex-col gap-1">
+                          {/* User bubble */}
+                          <div className="self-end max-w-[85%] bg-rs-amber text-white text-xs px-3 py-1.5 rounded-2xl rounded-br-sm">
+                            {msg.text}
+                          </div>
+                          {/* Status bubble */}
+                          <div className={`self-start text-xs px-3 py-1.5 rounded-2xl rounded-bl-sm flex items-center gap-1.5 ${msg.status === 'refining'
+                              ? 'bg-stone-100 text-stone-500'
+                              : msg.status === 'done'
+                                ? 'bg-stone-100 text-stone-500'
+                                : 'bg-red-50 text-red-400'
+                            }`}>
+                            {msg.status === 'refining'
+                              ? <><TypingDots /><span>Refining{refineElapsed > 0 ? ` (${refineElapsed}s)` : '…'}</span></>
+                              : msg.status === 'done'
+                                ? <><Check size={14} className="inline mr-1" />Applied</>
+                                : <><X size={14} className="inline mr-1" />Failed — try again</>}
+                          </div>
+                        </div>
+                      ))}
+                      <div ref={chatEndRef} />
+                    </div>
+                  )}
+
+                  {/* Input bar */}
+                  <form onSubmit={handleRefine} className="flex gap-2">
+                    <input
+                      className="input flex-1 text-xs py-2"
+                      placeholder="Refine this design… e.g. more minimal, warmer tones"
+                      value={chatInput}
+                      onChange={(e) => setChatInput(e.target.value)}
+                      disabled={chatLoading}
+                    />
+                    <button
+                      type="submit"
+                      disabled={chatLoading || !chatInput.trim()}
+                      className="btn-primary text-xs px-3 py-2 shrink-0 flex items-center justify-center min-w-[2rem]"
+                    >
+                      {chatLoading ? <TypingDots /> : '↑'}
                     </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Items found — only shown for non-refinement results that have products */}
-              {!isRefinementResult && displayed.products.length > 0 && (
-                <>
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold text-rs-dark">
-                      ✓ {displayed.products.length} items found
-                    </p>
-                    <p className="text-xs text-stone-500">
-                      Total: S${displayed.total_cost.toFixed(2)}
-                      {displayed.over_budget && <span className="text-red-500 ml-1">· over budget</span>}
-                    </p>
-                  </div>
-                  <div className="flex flex-col gap-1.5 max-h-32 overflow-y-auto">
-                    {displayed.products.map((p) => (
-                      <div key={p.product_id} className="flex items-center justify-between gap-2 text-xs">
-                        {p.buy_url ? (
-                          <a href={p.buy_url} target="_blank" rel="noopener noreferrer" className="truncate flex-1 text-stone-700 hover:underline hover:text-rs-amber">
-                            {p.name}
-                          </a>
-                        ) : (
-                          <span className="truncate flex-1 text-stone-700">{p.name}</span>
-                        )}
-                        <span className="text-rs-amber font-medium shrink-0">S${p.price.toFixed(2)}</span>
-                        <a href={p.buy_url} target="_blank" rel="noopener noreferrer"
-                          className="text-rs-amber underline shrink-0 hover:text-rs-dark">Buy →</a>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-
-              {isRefinementResult && (
-                <p className="text-xs text-stone-400 italic text-center">
-                  Refined design — view original for furniture list
-                </p>
-              )}
-
-              {/* ── Atmospheric Lighting ─────────────────────────────────── */}
-              <div className="border-t border-rs-border pt-3 flex flex-col gap-2">
-                <p className="text-xs font-medium text-stone-500">Atmospheric Lighting</p>
-                <div className="flex gap-1.5 flex-wrap">
-                  {LIGHTING_MODES.map((mode) => {
-                    const isActive = activeLighting === mode.key
-                    return (
-                      <button
-                        key={mode.key}
-                        onClick={() => handleLighting(mode.key)}
-                        disabled={lightingLoading || chatLoading}
-                        className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium border transition-all ${
-                          isActive
-                            ? 'bg-rs-amber text-white border-rs-amber'
-                            : 'bg-cream/60 text-stone-600 border-rs-border hover:border-rs-amber/60 hover:bg-cream'
-                        } disabled:opacity-50 disabled:cursor-not-allowed`}
-                      >
-                        <span>{mode.icon}</span>
-                        <span>{isActive && lightingLoading ? `${lightingElapsed}s…` : mode.label}</span>
-                      </button>
-                    )
-                  })}
-                </div>
-                {lightingLoading && (
+                  </form>
                   <p className="text-xs text-stone-400 text-center">
-                    Applying {LIGHTING_MODES.find(m => m.key === activeLighting)?.label} lighting…
+                    Describe how to change the design — AI will regenerate it
                   </p>
-                )}
+                </div>
               </div>
-
-              {/* ── Chat refinement ─────────────────────────────────────── */}
-              <div className="border-t border-rs-border pt-3 flex flex-col gap-2">
-                {/* Message history */}
-                {chatMessages.length > 0 && (
-                  <div className="flex flex-col gap-2 max-h-36 overflow-y-auto px-0.5">
-                    {chatMessages.map((msg, i) => (
-                      <div key={i} className="flex flex-col gap-1">
-                        {/* User bubble */}
-                        <div className="self-end max-w-[85%] bg-rs-amber text-white text-xs px-3 py-1.5 rounded-2xl rounded-br-sm">
-                          {msg.text}
-                        </div>
-                        {/* Status bubble */}
-                        <div className={`self-start text-xs px-3 py-1.5 rounded-2xl rounded-bl-sm flex items-center gap-1.5 ${
-                          msg.status === 'refining'
-                            ? 'bg-stone-100 text-stone-500'
-                            : msg.status === 'done'
-                            ? 'bg-stone-100 text-stone-500'
-                            : 'bg-red-50 text-red-400'
-                        }`}>
-                          {msg.status === 'refining'
-                            ? <><TypingDots /><span>Refining{refineElapsed > 0 ? ` (${refineElapsed}s)` : '…'}</span></>
-                            : msg.status === 'done'
-                            ? '✓ Applied'
-                            : '✗ Failed — try again'}
-                        </div>
-                      </div>
-                    ))}
-                    <div ref={chatEndRef} />
-                  </div>
-                )}
-
-                {/* Input bar */}
-                <form onSubmit={handleRefine} className="flex gap-2">
-                  <input
-                    className="input flex-1 text-xs py-2"
-                    placeholder="Refine this design… e.g. more minimal, warmer tones"
-                    value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
-                    disabled={chatLoading}
-                  />
-                  <button
-                    type="submit"
-                    disabled={chatLoading || !chatInput.trim()}
-                    className="btn-primary text-xs px-3 py-2 shrink-0 flex items-center justify-center min-w-[2rem]"
-                  >
-                    {chatLoading ? <TypingDots /> : '↑'}
-                  </button>
-                </form>
-                <p className="text-xs text-stone-400 text-center">
-                  Describe how to change the design — AI will regenerate it
-                </p>
-              </div>
-            </div>
             )
           })()}
         </div>
 
-        {/* ── RIGHT: Inspirations + Style browse ───────────────────────────── */}
-        <div className="flex flex-col gap-4">
-          <div className="card p-4">
-            <h2 className="font-semibold text-sm text-stone-700 mb-3">3. Inspirations</h2>
-            <div className="grid grid-cols-2 gap-2">
-              {STYLES.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setSelectedStyle(s)}
-                  className={`${STYLE_COLORS[s]} rounded-xl p-3 text-center border transition-all ${
-                    selectedStyle === s ? 'border-rs-amber ring-1 ring-rs-amber' : 'border-rs-border hover:border-rs-light'
-                  }`}
-                >
-                  <p className="text-xs font-medium text-stone-700">{s}</p>
-                </button>
-              ))}
-            </div>
+        {/* ── RIGHT: Inspirations + Products ───────────────────────────────── */}
+        <div className="card flex h-full flex-col gap-5 p-5 lg:p-6">
+          <div className="space-y-1">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-rs-amber/85">Step 3</p>
+            <h2 className="text-base font-semibold text-rs-dark">Inspirations</h2>
+            <p className="text-xs leading-5 text-stone-500">Explore curated aesthetics separately from the catalogue, with Modern inspiration loaded by default on first visit.</p>
           </div>
 
-          <div className="card p-4 flex-1">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="font-semibold text-sm text-stone-700">4. Quick Browse</h2>
+          {/* Style grid - smaller section */}
+          <div className="grid grid-cols-2 gap-2 rounded-[26px] border border-rs-border/80 bg-[#FCFAF7] p-3 sm:grid-cols-3">
+            {STYLES.map((s) => (
               <button
-                onClick={async () => {
-                  setBrowseLoading(true)
-                  try {
-                    const r = await searchProducts({ style: selectedStyle })
-                    setBrowseResults(r)
-                    setLeftTab('browse')
-                  } finally { setBrowseLoading(false) }
+                key={s}
+                onClick={() => {
+                  setSelectedStyle(s)
+                  void loadInspirationResults(s)
                 }}
-                disabled={!isManualMode}
-                className={`text-xs font-medium ${
-                  isManualMode
-                    ? 'text-rs-amber hover:text-rs-dark'
-                    : 'text-stone-300 cursor-not-allowed'
-                }`}
+                className={`${STYLE_COLORS[s]} rounded-[18px] border p-3 text-center text-xs transition-all duration-300 ${selectedStyle === s
+                  ? 'border-rs-amber ring-1 ring-rs-amber shadow-[0_16px_30px_-26px_rgba(179,139,89,0.9)]'
+                  : 'border-rs-border hover:border-rs-light hover:bg-white'
+                  }`}
+                title={s}
               >
-                {browseLoading ? 'Loading…' : `Load ${selectedStyle}`}
+                <p className="truncate text-[11px] font-medium text-stone-700">{s}</p>
               </button>
-            </div>
-            {!isManualMode ? (
-              <p className="text-xs text-stone-400 italic">
-                Quick Browse is available in Use My Items mode.
-              </p>
-            ) : browseResults.length > 0 ? (
-              <div className="flex flex-col gap-2 max-h-64 overflow-y-auto">
-                {browseResults.slice(0, 6).map((p) => (
-                  <div key={p.product_id} className="flex items-center gap-2 p-1.5 rounded-xl border border-rs-border bg-cream/30 hover:bg-cream/70 transition-colors">
+            ))}
+          </div>
+
+          {/* Products section - larger area */}
+          <div className="flex-1 flex flex-col min-h-0">
+            <p className="mb-2 text-xs font-medium text-stone-500">Curated for {selectedStyle}</p>
+            {inspirationLoading ? (
+              <div className="flex items-center justify-center py-8 text-stone-400">
+                <Loader size={16} className="mr-2 animate-spin" /> Loading…
+              </div>
+            ) : inspirationResults.length > 0 ? (
+              <div className="flex flex-1 flex-col gap-2 overflow-y-auto">
+                {inspirationResults.slice(0, 12).map((p) => (
+                  <div key={p.product_id} className="flex items-center gap-3 rounded-2xl border border-rs-border/80 bg-[#FCFAF7] p-3 transition-colors hover:bg-white">
                     {p.image_url
-                      ? <img src={p.image_url} className="w-9 h-9 rounded-lg object-cover bg-stone-100 shrink-0" alt="" />
-                      : <div className="w-9 h-9 rounded-lg bg-cream flex items-center justify-center text-base shrink-0">🛋️</div>}
-                    <div className="flex-1 min-w-0">
+                      ? <img src={p.image_url} className="h-12 w-12 shrink-0 rounded-xl object-cover bg-stone-100" alt="" />
+                      : <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-cream"><Armchair size={18} className="text-stone-300" /></div>}
+                    <div className="min-w-0 flex-1">
                       {p.buy_url ? (
-                        <a href={p.buy_url} target="_blank" rel="noopener noreferrer" className="text-xs font-medium truncate hover:underline hover:text-rs-amber block">
+                        <a href={p.buy_url} target="_blank" rel="noopener noreferrer" className="block truncate text-xs font-medium text-stone-700 hover:text-rs-amber hover:underline">
                           {p.name}
                         </a>
                       ) : (
-                        <p className="text-xs font-medium truncate">{p.name}</p>
+                        <p className="truncate text-xs font-medium text-stone-700">{p.name}</p>
                       )}
-                      <p className="text-xs text-rs-amber">S${p.price.toFixed(2)}</p>
+                      <p className="mt-1 text-xs text-rs-amber">S${p.price.toFixed(2)}</p>
                     </div>
                     <button
                       onClick={() => addItem(p)}
                       disabled={isSelected(p.product_id) || selectedItems.length >= 5}
-                      className="btn-primary text-xs py-0.5 px-2 shrink-0"
+                      className="btn-primary shrink-0 px-3 py-2 text-xs"
                     >
-                      {isSelected(p.product_id) ? '✓' : '+'}
+                      {isSelected(p.product_id) ? <Check size={14} /> : <Plus size={14} />}
                     </button>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-stone-400 italic">Click "Load {selectedStyle}" to browse items</p>
+              <div className="flex items-center justify-center py-8 text-stone-400">
+                <p className="text-xs italic">Select a style to browse curated products</p>
+              </div>
             )}
           </div>
         </div>
 
       </div>
+
+      {/* Image Modal */}
+      {selectedImageUrl && (
+        <ImageModal
+          image_url={selectedImageUrl}
+          onClose={() => setSelectedImageUrl(null)}
+        />
+      )}
     </main>
   )
 }

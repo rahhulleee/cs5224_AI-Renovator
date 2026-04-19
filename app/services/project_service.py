@@ -111,6 +111,41 @@ class ProjectService:
         project_store.delete(project)
         db.commit()
 
+    def get_project_generations(self, project_id: UUID, user_id: UUID, db: Session) -> list:
+        """Get all completed generations for a project.
+        
+        Args:
+            project_id: Project UUID
+            user_id: User UUID for ownership verification
+            db: Database session
+            
+        Returns:
+            List of GenerationDone objects
+            
+        Raises:
+            HTTPException: If project not found or not owned by user (404)
+        """
+        from app.services.generation_service import GenerationService
+        from app.models.orm import GenerationStatus
+        from app.models.schemas import GenerationDone
+        
+        project = self._get_owned_project(project_id, user_id, db)
+        gen_service = GenerationService()
+        
+        results = []
+        # Sort generations by created_at DESC so newest is first
+        sorted_gens = sorted(project.generations, key=lambda g: g.created_at, reverse=True)
+        for gen in sorted_gens:
+            if gen.status == GenerationStatus.completed:
+                try:
+                    res = gen_service.get_generation_status(gen.design_id, user_id, db)
+                    if isinstance(res, GenerationDone):
+                        results.append(res)
+                except Exception:
+                    pass
+                    
+        return results
+
     def create_upload_presign(
         self,
         project_id: UUID,

@@ -1,4 +1,5 @@
 import { Product } from '../types'
+import { Armchair } from 'lucide-react'
 
 interface Props {
   product: Product
@@ -23,7 +24,9 @@ export default function ProductCard({ product, onAdd, selected }: Props) {
           onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
         />
       ) : (
-        <div className="w-full h-36 bg-cream flex items-center justify-center text-4xl">🛋️</div>
+        <div className="w-full h-36 bg-cream flex items-center justify-center">
+          <Armchair size={48} className="text-stone-300" />
+        </div>
       )}
 
       <div className="p-3">

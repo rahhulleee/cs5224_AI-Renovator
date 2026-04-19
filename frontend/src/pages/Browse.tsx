@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { searchProducts } from '../api'
 import ProductCard from '../components/ProductCard'
 import { Product } from '../types'
+import { Loader, Armchair } from 'lucide-react'
 
 const STYLES = ['', 'Modern', 'Scandinavian', 'Cozy Warm', 'Futuristic', 'Nature', 'Industrial']
 
@@ -103,11 +104,11 @@ export default function Browse() {
 
       {loading ? (
         <div className="flex items-center justify-center py-20 text-stone-400">
-          <span className="animate-spin mr-2">⏳</span> Searching IKEA catalogue…
+          <Loader size={20} className="animate-spin mr-2" /> Searching catalogue…
         </div>
       ) : results.length === 0 ? (
         <div className="text-center py-20 text-stone-400">
-          <p className="text-3xl mb-2">🛋️</p>
+          <Armchair size={48} className="mx-auto mb-2 text-stone-300" />
           <p>No results found. Try a different search.</p>
         </div>
       ) : (
